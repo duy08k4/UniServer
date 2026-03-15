@@ -23,7 +23,7 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
 
         synchronize: false,
         logging: true, // true nếu cần debug sâu
-        entities: ['dist/**/*.entity{.ts,.js}'],
+        entities: [__dirname + '/../entities/*en.{ts,js}'],
         migrations: ['dist/migrations/*{.ts,.js}'],
         autoLoadEntities: true,
     };

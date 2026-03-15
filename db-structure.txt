@@ -1,0 +1,257 @@
+Enum Role {
+  user
+  uniadmin
+  roomadmin
+  student
+  lecturer
+}
+
+Enum Field_Type {
+  string
+  number
+  file
+  checkbox
+}
+
+Enum Field_Label {
+  null // 
+  outline_file // Đề cương
+  report_file // Báo cáo tiến độ
+  final_thesis // Bài báo cáo cuối
+}
+
+Enum ScoreForm_Type {
+  supervisor_score //Điểm giảng viên hướng dẫn
+  reviewer_score // Điểm giảng viên phản biện
+  committee_score // Điểm hội đồng
+  attendance_check // Điểm chuyên cần / tiến độ
+  bonus_score // Điểm cộng
+  other // Khác
+}
+
+Enum Unit {
+  file
+  unit
+  character
+}
+
+// Use case
+Table use_cases {
+  id uuid pk
+  module varchar
+  uc_name varchar
+  description varchar
+  priority enum('High', 'Medium', 'Low')
+}
+
+Table use_case_permissions {
+ id uuid [pk]
+  role Role 
+  
+  // Các cờ phân quyền chi tiết cho từng Use Case
+  can_view boolean [default: true]
+  can_create boolean [default: false]
+  can_edit boolean [default: false]
+  can_delete boolean [default: false]
+  can_approve boolean [default: false] // Chỉ Level 1 hoặc 2 mới có cái này
+  usecase_id uuid [ref: > use_cases.id]
+}
+
+
+// Authentication
+Table users {
+  id uuid pk
+  supabase_id varchar
+  full_name varchar
+  email varchar unique
+  is_banned boolen
+  is_deleted boolean
+  role Role
+  phone_number varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+// Classroom
+Table classes {
+  id uuid pk
+  created_by uuid [ref: > users.id]
+  join_code varchar
+  label varchar
+  description varchar
+  subject varchar
+  created_approval boolean // Chờ admin hệ thống duyệt
+  required_approval boolean // Duyệt yêu cầu tham gia
+  required_join_form boolean // Điền form kh tham gia lớp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table class_members {
+  id uuid pk
+  role Role
+  student_code varchar unique
+  is_committee_member boolean
+  can_create_notifications boolean
+  can_create_forms boolean
+  can_create_score_forms boolean
+  joined_at timestamp
+  updated_at timestamp
+  class uuid [unique, ref: > classes.id]
+}
+
+// Progress
+Table progresses {
+  id uuid pk
+  label varchar
+  description varchar
+  updated_at timestamp
+  created_at timestamp
+  created_by uuid [ref: > users.id]
+  class uuid [ref: - classes.id]
+}
+
+// Milestones 
+Table milestones {
+  id uuid pk
+  index number
+  label varchar
+  description varchar
+  updated_at timestamp
+  created_at timestamp
+  created_by uuid [ref: > users.id]
+  progress uuid [ref: > progresses.id]
+}
+
+// Notifications
+Table notifications {
+  id uuid pk
+  title varchar
+  body varchar
+  email_notification_enabled boolean
+  created_at timestamp
+  updated_at timestamp
+  class uuid [ref: > classes.id]
+  created_by uuid [ref: > users.id]
+}
+
+// Form
+Table forms {
+  id uuid pk
+  is_join_form boolean
+  label varchar
+  description varchar
+  field_count number
+  is_auto_open boolean
+  is_auto_close boolean
+  email_notification_enabled boolean
+  open_at timestamp
+  close_at timestamp
+  update_at timestamp
+  created_at timestamp
+  milestone uuid [ref: > milestones.id]
+  created_by uuid [ref: > users.id]
+}
+
+Table fields {
+  id uuid pk
+  index number
+  label varchar
+  description varchar
+  input_type Field_Type
+  is_required boolean
+  max_attempts number
+  min_attempts number
+  unit Unit
+  update_at timestamp
+  created_at timestamp
+  form uuid [ref: > forms.id] 
+}
+
+Table checkbox_fields {
+  id uuid pk 
+  index number
+  label varchar
+  description varchar
+  input_type Field_Type.checkbox
+  choice_count number
+  is_required boolean
+  is_multiple boolean
+  update_at timestamp
+  created_at timestamp
+  form uuid [ref: > forms.id] 
+}
+
+Table checkbox_field_choices {
+  id uuid pk
+  index number
+  body varchar
+  submission_checkbox uuid [ref: - submission_checkboxes.id]
+}
+
+// Score form
+Table score_forms {
+  id uuid pk
+  score_form_type ScoreForm_Type
+  label varchar
+  description varchar
+  field_count number
+  is_auto_open boolean
+  is_auto_close boolean
+  email_notification_enabled boolean
+  open_at timestamp
+  close_at timestamp
+  created_at timestamp
+  update_at timestamp
+  created_by uuid [ref: > users.id]
+  milestone uuid [ref: > milestones.id]
+}
+
+Table score_form_columns {
+  id uuid pk
+  label varchar
+  score_form uuid [ref: > score_forms.id]
+}
+
+Table score_form_rows {
+  id uuid pk
+  index number
+  updated_at timestamp
+  student uuid [ref: > users.id]
+  score_form uuid [ref: > score_forms.id]
+}
+
+Table score_form_cells {
+  id uuid pk
+  value varchar
+  updated_at timestamp
+  updated_by uuid [ref: > users.id]
+  row uuid [ref: > score_form_rows.id]
+  column uuid [ref: > score_form_columns.id]
+}
+
+
+
+// Submission
+Table submissions {
+  id uuid pk
+  updated_at timestamp
+  created_at timestamp
+  form_id uuid [ref: > forms.id]
+  user uuid [null, ref: > users.id]
+}
+
+Table submission_answers {
+  id uuid
+  body varchar
+  field uuid [ref: - fields.id]
+  submission uuid [ref: > submissions.id] 
+}
+
+Table submission_checkboxes {
+  id uuid
+  checkbox_field_id uuid [ref: - checkbox_fields.id]
+  submission uuid [ref: > submissions.id]
+}
+
+

@@ -1,0 +1,63 @@
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Milestones } from "./milestones.en";
+import { Users } from "./user.en";
+import { Fields } from "./fields.en";
+import { Checkbox_fields } from "./checkbox_fields.en";
+import { Submissions } from "./submissions.en";
+
+@Entity('forms')
+export class Forms {
+    @PrimaryGeneratedColumn('uuid')
+    id : string
+
+    @Column({ type: 'boolean', default: false })
+    is_join_form : boolean
+    
+    @Column({ type: 'varchar' })
+    label : string
+    
+    @Column({ type: 'varchar', nullable: true, default: null })
+    description : string
+    
+    @Column({ type: 'int' })
+    field_count : number
+    
+    @Column({ type: 'boolean', default: false })
+    is_auto_open : boolean
+    
+    @Column({ type: 'boolean', default: false })
+    is_auto_close : boolean
+    
+    @Column({ type: 'boolean', default: true })
+    email_notification_enabled : boolean
+    
+    @Column({ type: 'timestamptz' })
+    open_at : Date
+    
+    @Column({ type: 'timestamptz' })
+    close_at : Date
+    
+    @Column({ type: 'timestamptz' })
+    update_at : Date
+    
+    @UpdateDateColumn({ type: 'timestamptz' })
+    created_at : Date
+
+    // Relations
+    @ManyToOne(() => Milestones, (milestone) => milestone.forms, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'milestone' })
+    milestone: Milestones;
+
+    @ManyToOne(() => Users, (user) => user.forms, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'created_by' })
+    createdBy: Users;
+
+    @OneToMany(() => Fields, (field) => field.form, { cascade: true })
+    fields: Fields[];
+
+    @OneToMany(() => Checkbox_fields, (checkboxField) => checkboxField.form, { cascade: true })
+    checkboxFields: Checkbox_fields[];
+
+    @OneToMany(() => Submissions, (submission) => submission.form, { cascade: true })
+    submissions: Submissions[];
+}
