@@ -1,13 +1,14 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 // Enum
 import { PriorityCase } from "src/enums/enums";
 
 // Entities
-import { UserCasePermission } from "./use_case_permissions.en";
+import { UseCasePermission } from "./use_case_permissions.en";
 
 @Entity('use_cases')
-export class UserCases {
+@Index(['module'])
+export class UseCases {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
@@ -20,9 +21,9 @@ export class UserCases {
   @Column({ type: 'varchar' })
   description: string
 
-  @Column({ type: 'varchar', enum: PriorityCase })
-  priority: string
+  @Column({ type: 'enum', enum: PriorityCase, default: PriorityCase.M_HAVE })
+  priority: PriorityCase
 
-  @OneToMany(() => UserCasePermission, (usecase_permission) => usecase_permission.usecase_id)
-  usecase_permissions: UserCasePermission[]
+  @OneToMany(() => UseCasePermission, (usecase_permission) => usecase_permission.usecase_id)
+  usecase_permissions: UseCasePermission[]
 }

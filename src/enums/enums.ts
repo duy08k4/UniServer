@@ -1,16 +1,16 @@
 export enum Role {
-    USER = "user",
-    UNIADMIN = "uniadmin",
-    ROOMADMIN = "roomadmin",
-    STUDENT = "student",
-    LECTURER = "lecturer",
+  USER = "user",
+  UNIADMIN = "uniadmin",
+  ROOMADMIN = "roomadmin",
+  STUDENT = "student",
+  LECTURER = "lecturer",
 }
 
 export enum Field_Type {
-    STRING = "string",
-    NUMBER = "number",
-    FILE = "file",
-    CHECKBOX = "checkbox",
+  STRING = "string",
+  NUMBER = "number",
+  FILE = "file",
+  CHECKBOX = "checkbox",
 }
 
 export enum Unit {
@@ -36,7 +36,8 @@ export enum ScoreForm_Type {
 }
 
 export enum PriorityCase {
-    HIGH = "high",
-    MEDIUM = "medium",
-    LOW = "low"
+  M_HAVE = "must_have",
+  S_HAVE = "should_have",
+  C_HAVE = "could_have",
+  W_HAVE = "won't_have"
 }

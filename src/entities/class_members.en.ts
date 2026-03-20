@@ -1,20 +1,19 @@
-import { Check, Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Check, Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { Role } from "src/enums/enums";
 import { Classes } from "./classes.en";
+import { Users } from "./user.en";
 
 @Entity('class_members')
 @Check(`"role" IN ('${Role.ROOMADMIN}', '${Role.STUDENT}', '${Role.LECTURER}')`)
+@Index(['class', 'user'], { unique: true })
 export class ClassMembers {
     @PrimaryGeneratedColumn('uuid')
     id : string
 
-    @Column({ type: 'varchar', enum: Role, default: Role.STUDENT })
+    @Column({ type: 'enum', enum: Role, default: Role.STUDENT })
     role : Role
-    
-    @Column({ type: 'varchar', unique: true })
-    student_code : string
     
     @Column({ type: 'boolean', default: false })
     is_committee_member : boolean
@@ -35,7 +34,11 @@ export class ClassMembers {
     updated_at : Date
 
     // Relations
-    @OneToOne(() => Classes, (cls) => cls.members, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Classes, (cls) => cls.members, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'class' })
     class: Classes;
+
+    @ManyToOne(() => Users, (user) => user.classMember, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'user_id' })
+    user: Users
 }

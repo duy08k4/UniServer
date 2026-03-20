@@ -1,9 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { ScoreForms } from "./score_forms.en";
 import { ScoreFormCells } from "./score_form_cells.en";
 
 @Entity('score_form_columns')
-export class CcoreFormColumns {
+@Index(['scoreForm'])
+export class ScoreFormColumns {
     @PrimaryGeneratedColumn('uuid')
     id : string
 

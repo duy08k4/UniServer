@@ -30,6 +30,12 @@ export class Classes {
     @Column({ type: 'boolean', default: false })
     required_join_form: boolean
 
+    @Column({ type: 'boolean', default: false })
+    is_deleted: boolean
+
+    @Column({ type: 'boolean', default: false })
+    is_banned: boolean
+
     @Column({ type: 'timestamptz' })
     created_at: Date
 

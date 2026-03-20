@@ -1,18 +1,19 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 // Enum
 import { Role } from "src/enums/enums";
 
 // Entities
-import { UserCases } from "./use_cases.en";
+import { UseCases } from "./use_cases.en";
 
 @Entity('use_case_permissions')
-export class UserCasePermission {
+@Index(['role', 'usecase_id'])
+export class UseCasePermission {
     @PrimaryGeneratedColumn('uuid')
     id: string
 
-    @Column({ type: 'varchar', enum: Role })
-    role: string
+    @Column({ type: 'enum', enum: Role })
+    role: Role
 
     @Column({ type: 'boolean', default: true })
     can_view: boolean
@@ -29,7 +30,7 @@ export class UserCasePermission {
     @Column({ type: 'boolean', default: false })
     can_approve: boolean
 
-    @ManyToOne(() => UserCases, (usecase) => usecase.usecase_permissions, { onDelete: 'CASCADE' })
+    @ManyToOne(() => UseCases, (usecase) => usecase.usecase_permissions, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'usecase_id' })
-    usecase_id: UserCases
+    usecase_id: UseCases
 }

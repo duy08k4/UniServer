@@ -5,7 +5,11 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 // Config
 import databaseConfig from "./config/data-source"
 import supabaseConfig from "./config/supabase"
+
+// Modules
 import { AuthModule } from "./modules/auth/auth.module";
+import { ClassesModule } from "./modules/classes/classes.module";
+import { AdminModule } from "./modules/admin/admin.module";
 
 @Module({
   imports: [
@@ -26,7 +30,7 @@ import { AuthModule } from "./modules/auth/auth.module";
     }),
 
     TypeOrmModule.forFeature([]),
-    AuthModule
+    AdminModule, AuthModule, ClassesModule
   ],
   controllers: [],
   providers: []

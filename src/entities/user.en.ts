@@ -9,6 +9,7 @@ import { ScoreForms } from "./score_forms.en";
 import { ScoreFormRows } from "./score_form_rows.en";
 import { ScoreFormCells } from "./score_form_cells.en";
 import { Submissions } from "./submissions.en";
+import { ClassMembers } from "./class_members.en";
 
 @Entity('users')
 export class Users {
@@ -69,4 +70,7 @@ export class Users {
 
     @OneToMany(() => Submissions, (sub) => sub.user, { cascade: true })
     submissions: Submissions[];
+
+    @OneToMany(() => ClassMembers, (members) => members.user, { cascade: true })
+    classMember: ClassMembers[]
 }

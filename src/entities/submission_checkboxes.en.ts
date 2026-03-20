@@ -1,9 +1,10 @@
-import { Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Checkbox_fields } from "./checkbox_fields.en";
 import { Submissions } from "./submissions.en";
 import { CheckboxFieldChoices } from "./checkbox_field_choices.en";
 
 @Entity('submission_checkboxes')
+@Index(['checkboxField', 'submission'])
 export class SubmissionCheckboxes {
     @PrimaryGeneratedColumn('uuid')
     id : string

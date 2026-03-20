@@ -1,10 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Users } from "./user.en";
 import { Progresses } from "./progresses.en";
 import { Forms } from "./forms.en";
 import { ScoreForms } from "./score_forms.en";
 
 @Entity('milestones')
+@Index(['progress', 'label', 'createdBy', 'is_deleted', 'is_stopped'])
 export class Milestones {
     @PrimaryGeneratedColumn('uuid')
     id: string
@@ -17,6 +18,12 @@ export class Milestones {
 
     @Column({ type: 'varchar', nullable: true, default: true })
     description: string
+
+    @Column({ type: 'boolean', default: false })
+    is_deleted: boolean
+
+    @Column({ type: 'boolean', default: false })
+    is_stopped: boolean
 
     @Column({ type: 'timestamptz' })
     updated_at: Date

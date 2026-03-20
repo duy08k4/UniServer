@@ -1,10 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Forms } from "./forms.en";
 import { Users } from "./user.en";
 import { SubmissionAnswers } from "./submission_answers.en";
 import { SubmissionCheckboxes } from "./submission_checkboxes.en";
 
 @Entity('submissions')
+@Index(['user', 'form'])
 export class Submissions {
     @PrimaryGeneratedColumn('uuid')
     id: string

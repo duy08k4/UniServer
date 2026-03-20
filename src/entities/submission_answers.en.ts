@@ -1,8 +1,9 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Fields } from "./fields.en";
 import { Submissions } from "./submissions.en";
 
 @Entity('submission_answers')
+@Index(['field', 'submission'])
 export class SubmissionAnswers {
     @PrimaryGeneratedColumn('uuid')
     id : string

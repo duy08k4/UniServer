@@ -16,7 +16,7 @@ export class AuthController {
 
     // Sign up
     @Post('signup')
-    @ApiOperation({ summary: '(Public)' })
+    @ApiOperation({ summary: '(Role: Public)' })
     @ApiResponse({
         status: 201,
         description: 'User registration successful',
@@ -73,6 +73,7 @@ export class AuthController {
 
     // Sign in
     @Post('signin')
+    @ApiOperation({ summary: '(Role: Public)' })
     @ApiResponse({
         status: 201,
         description: 'Login successful',
@@ -150,7 +151,7 @@ export class AuthController {
                 httpOnly: true,
                 sameSite: 'none',
                 secure: true,
-                maxAge: (response.token.expires_in + 86400) * 1000 // Thời gian của accessToken + 1 ngày
+                maxAge: response.token.expires_in * 1000
             }
         )
         return response.response
@@ -159,6 +160,7 @@ export class AuthController {
 
     // Signout
     @Get('signout')
+    @ApiOperation({ summary: '(Signed)' })
     @ApiResponse({
         status: 200,
         description: 'Logout successful',
@@ -201,6 +203,7 @@ export class AuthController {
 
     // Require reset password
     @Post('password/require-reset')
+    @ApiOperation({ summary: '(Role: Public)' })
     @ApiResponse({
         status: 200,
         description: 'Send reset password email successfully',
@@ -237,6 +240,36 @@ export class AuthController {
 
     // Update password
     @Post('password/update')
+    @ApiOperation({ summary: '(Role: Public)' })
+    @ApiResponse({
+        status: 200,
+        description: 'Password updated successfully',
+        schema: {
+            example: true,
+        },
+    })
+    @ApiResponse({
+        status: 401,
+        description: 'Invalid or expired reset token',
+        schema: {
+            example: {
+                statusCode: 401,
+                message: 'Invalid or expired reset token',
+                error: 'Unauthorized',
+            },
+        },
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Password update failed',
+        schema: {
+            example: {
+                statusCode: 400,
+                message: 'Password reset failed',
+                error: 'Bad Request',
+            },
+        },
+    })
     async updatePassword(@Body() updatePassword: UpdatePassword) {
         return this.authService.updatePassword(updatePassword)
     }

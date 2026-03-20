@@ -6,19 +6,25 @@ import { Milestones } from "./milestones.en";
 @Entity('progresses')
 export class Progresses {
     @PrimaryGeneratedColumn('uuid')
-    id : string
+    id: string
 
     @Column({ type: 'varchar', nullable: true, default: true })
-    label : string
+    label: string
 
     @Column({ type: 'varchar', nullable: true, default: true })
-    description : string
+    description: string
+
+    @Column({ type: 'boolean', default: false })
+    is_deleted: boolean
+
+    @Column({ type: 'boolean', default: false })
+    required_approval: boolean
 
     @Column({ type: 'timestamptz' })
-    created_at : Date
-    
+    created_at: Date
+
     @UpdateDateColumn({ type: 'timestamptz' })
-    updated_at : Date
+    updated_at: Date
 
     // Relations
     @ManyToOne(() => Users, (user) => user.createdProgresses, { onDelete: 'CASCADE' })

@@ -1,8 +1,9 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Classes } from "./classes.en";
 import { Users } from "./user.en";
 
 @Entity('notifications')
+@Index(['class', 'createdBy'])
 export class Notifications {
     @PrimaryGeneratedColumn('uuid')
     id: string

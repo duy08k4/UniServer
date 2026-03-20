@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException, UnauthorizedException } from "@nestjs/common";
-import { createClient, Session, SupabaseClient } from "@supabase/supabase-js";
+import { createClient, Session, SupabaseClient, UserResponse } from "@supabase/supabase-js";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -169,6 +169,49 @@ export class AuthService {
 
         } catch (error) {
             return false
+        }
+    }
+
+    // Get user from token
+    async getUSerFromToken(accessToken: string): Promise<boolean | UserResponse | undefined> {
+        try {
+            if (!accessToken) return false
+
+            const user: UserResponse = await this.supabase.auth.getUser(accessToken)
+
+            if (!user.data.user) return false
+
+            const userExistance = await this.usersRepository.findOne({ where: { email: user.data.user.email, supabase_id: user.data.user.id } })
+            if (!userExistance) return false
+            return user
+        } catch (error) {
+            if (error instanceof InternalServerErrorException) throw new InternalServerErrorException(error.message)
+            if (error instanceof BadRequestException) throw new BadRequestException(error.message)
+
+            return false
+        }
+    }
+
+    async refreshToken(accessToken: string, refreshToken: string) {
+        try {
+            const userExistance = await this.getUSerFromToken(accessToken)
+            if (!userExistance) return false
+
+            const { error, data } = await this.supabase.auth.refreshSession({ refresh_token: refreshToken })
+
+            if (error) return false
+
+            return {
+                token: data.session,
+                response: {
+                    message: 'Refresh successful',
+                    data: userExistance
+                }
+            }
+
+        } catch (error) {
+            if (error instanceof InternalServerErrorException) throw new InternalServerErrorException(error.message)
+            if (error instanceof BadRequestException) throw new BadRequestException(error.message)
         }
     }
 }

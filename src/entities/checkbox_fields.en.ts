@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { Field_Type } from "src/enums/enums";
@@ -6,6 +6,7 @@ import { Forms } from "./forms.en";
 import { SubmissionCheckboxes } from "./submission_checkboxes.en";
 
 @Entity('checkbox_fields')
+@Index(['form'])
 export class Checkbox_fields {
     @PrimaryGeneratedColumn('uuid')
     id : string
@@ -19,7 +20,7 @@ export class Checkbox_fields {
     @Column({ type: 'varchar', nullable: true, default: null })
     description : string
     
-    @Column({ type: 'varchar', enum: Field_Type, default: Field_Type.CHECKBOX })
+    @Column({ type: 'enum', enum: Field_Type, default: Field_Type.CHECKBOX })
     input_type:  Field_Type.CHECKBOX
     
     @Column({ type: 'int' })
