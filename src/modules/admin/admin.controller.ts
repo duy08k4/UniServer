@@ -196,7 +196,7 @@ export class AdminController {
                     can_edit: { type: 'boolean', example: false },
                     can_delete: { type: 'boolean', example: false },
                     can_approve: { type: 'boolean', example: false },
-                    usecase_id: {
+                    usecase: {
                         type: 'object',
                         properties: {
                             id: { type: 'string', example: '84b5ae6a-837b-4cc0-a158-9dbf2b86e8e6' },
@@ -218,51 +218,49 @@ export class AdminController {
     }
 
     // Add permission
-    @Post('permission/add')
-    @ApiOperation({ summary: '(Signed) (Only Uniadmin)' })
-    @Roles(Role.UNIADMIN)
-    @UseGuards(AuthGuard, RoleGuard)
-    @ApiResponse({
-        status: 201,
-        description: 'Permission added successfully',
-        schema: {
-            type: 'object',
-            properties: {
-                id: { type: 'string', example: 'd290f1ee-6c54-4b01-90e6-d701748f0851' },
-                role: { type: 'string', example: 'user' },
-                can_view: { type: 'boolean', example: true }
-            }
-        }
-    })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized',
-        schema: { example: { statusCode: 401, message: "Unauthorized" } }
-    })
-    @ApiResponse({
-        status: 403,
-        description: 'Forbidden',
-        schema: { example: { statusCode: 403, message: "Access denied" } }
-    })
-    @ApiResponse({ status: 409, description: 'Permission already exists!' })
-    async addPermission(@Body() permissionData: AddPermissionDTO) {
-        return this.adminService.addPermission(permissionData)
-    }
+    // @Post('permission/add')
+    // @ApiOperation({ summary: '(Signed) (Only Uniadmin)' })
+    // @Roles(Role.UNIADMIN)
+    // @UseGuards(AuthGuard, RoleGuard)
+    // @ApiResponse({
+    //     status: 201,
+    //     description: 'Permission added successfully',
+    //     schema: {
+    //         type: 'object',
+    //         properties: {
+    //             id: { type: 'string', example: 'd290f1ee-6c54-4b01-90e6-d701748f0851' },
+    //             role: { type: 'string', example: 'user' },
+    //             can_view: { type: 'boolean', example: true }
+    //         }
+    //     }
+    // })
+    // @ApiResponse({
+    //     status: 401,
+    //     description: 'Unauthorized',
+    //     schema: { example: { statusCode: 401, message: "Unauthorized" } }
+    // })
+    // @ApiResponse({
+    //     status: 403,
+    //     description: 'Forbidden',
+    //     schema: { example: { statusCode: 403, message: "Access denied" } }
+    // })
+    // @ApiResponse({ status: 409, description: 'Permission already exists!' })
+    // async addPermission(@Body() permissionData: AddPermissionDTO) {
+    //     return this.adminService.addPermission(permissionData)
+    // }
 
-    // Update permission
+    // Update permission (Upsert)
     @Put('permission/update')
-    @ApiOperation({ summary: '(Signed) (Only Uniadmin)' })
+    @ApiOperation({ summary: '(Signed) (Only Uniadmin) Update or Create permissions' })
     @Roles(Role.UNIADMIN)
     @UseGuards(AuthGuard, RoleGuard)
     @ApiResponse({
         status: 200,
-        description: 'Permission updated successfully',
+        description: 'Permissions updated successfully',
         schema: {
-            type: 'object',
-            properties: {
-                id: { type: 'string', example: 'd290f1ee-6c54-4b01-90e6-d701748f0851' },
-                can_view: { type: 'boolean', example: true },
-                can_edit: { type: 'boolean', example: true }
+            example: {
+                message: 'Update successful!',
+                data: {}
             }
         }
     })
@@ -276,8 +274,12 @@ export class AdminController {
         description: 'Forbidden',
         schema: { example: { statusCode: 403, message: "Access denied" } }
     })
-    @ApiResponse({ status: 404, description: 'Permission does not exist!' })
-    async updatePermission(@Body() permissionData: UpdatePermissionDTO) {
+    @ApiResponse({
+        status: 404,
+        description: 'Usecase does not exist!',
+    })
+    @ApiResponse({ status: 502, description: 'Bad Gateway' })
+    async updatePermission(@Body() permissionData: { usecaseId: string, permissions: UpdatePermissionDTO[] }) {
         return this.adminService.updatePermission(permissionData)
     }
 }

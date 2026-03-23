@@ -1,10 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Post, Res } from "@nestjs/common";
-import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { BadRequestException, Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 // Dto
 import { RequireResetPassword, SignInDTO, SignUpDTO, UpdatePassword } from "./auth.dto";
 import { AuthService } from "./auth.service";
-import type { Response } from "express";
+import type { Request, Response } from "express";
+import { AuthGuard } from "./auth.guard";
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -13,6 +14,73 @@ export class AuthController {
         private readonly authService: AuthService
     ) { }
 
+    // Auth me
+    @Get('me')
+    @UseGuards(AuthGuard)
+    @ApiOperation({ summary: '(Role: Signed)' })
+    @ApiQuery({ name: 'isUserData', type: Boolean, example: true, description: 'Return user data if true, otherwise return true' })
+    @ApiResponse({
+        status: 200,
+        description: 'Get current user data or check authentication status',
+        schema: {
+            oneOf: [
+                { type: 'boolean', example: true },
+                {
+                    example: {
+                        id: "1cf45c67-4c3c-4b27-a375-63aa85fe2egf",
+                        supabase_id: "58fdd8c9-7374-4471-9fe3-0c7a1d1bfg5b",
+                        full_name: "Nguyen Van A",
+                        email: "nguyenvana@gmail.com",
+                        is_banned: false,
+                        is_deleted: false,
+                        role: "user",
+                        phone_number: null,
+                        created_at: "2026-03-16T05:42:03.424Z",
+                        updated_at: "2026-03-16T05:42:03.424Z"
+                    }
+                }
+            ]
+        }
+    })
+    @ApiResponse({
+        status: 401,
+        description: 'Unauthorized - Session expired or invalid token',
+        schema: {
+            example: {
+                statusCode: 401,
+                message: "Session expired, please login again",
+                error: "Unauthorized"
+            }
+        }
+    })
+    @ApiResponse({
+        status: 403,
+        description: 'Forbidden - No access token found in cookies',
+        schema: {
+            example: {
+                statusCode: 403,
+                message: "Access denied",
+                error: "Forbidden"
+            }
+        }
+    })
+    @ApiResponse({
+        status: 409,
+        description: 'Conflict - User exists in auth but missing in database',
+        schema: {
+            example: {
+                statusCode: 409,
+                message: "User data is missing",
+                error: "Conflict"
+            }
+        }
+    })
+    async authMe (
+        @Query() query: { isUserData: boolean },
+        @Req() req: Request
+    ) {
+        return this.authService.authMe(query, req)
+    }
 
     // Sign up
     @Post('signup')
@@ -26,7 +94,8 @@ export class AuthController {
                 data: {
                     id: "b7d9c8a2-1a2f-4c45-9c0b-6bfa1b7a3e1d",
                     email: "nguyenvana@gmail.com",
-                    full_name: "Nguyen Van A"
+                    full_name: "Nguyen Van A",
+                    role: "user"
                 }
             }
         }

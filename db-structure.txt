@@ -54,7 +54,7 @@ Table use_case_permissions {
   can_edit boolean [default: false]
   can_delete boolean [default: false]
   can_approve boolean [default: false] // Chỉ Level 1 hoặc 2 mới có cái này
-  usecase_id uuid [ref: > use_cases.id]
+  usecase uuid [ref: > use_cases.id]
 }
 
 

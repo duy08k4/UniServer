@@ -1,4 +1,4 @@
-import { Role } from "src/enums/enums";
+import { MainRole } from "src/enums/enums";
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Classes } from "./classes.en";
 import { Progresses } from "./progresses.en";
@@ -31,8 +31,8 @@ export class Users {
     @Column('boolean', { default: false })
     is_deleted: boolean
 
-    @Column({ type: 'enum', enum: Role, default: Role.USER })
-    role: Role
+    @Column({ type: 'enum', enum: MainRole, default: MainRole.USER })
+    role: MainRole
 
     @Column('varchar', { nullable: true })
     phone_number: string

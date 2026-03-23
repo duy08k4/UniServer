@@ -21,11 +21,24 @@ export class AdminService {
     // Get usecase
     async getUseCase(query: GetUseCaseQueryDTO) {
         try {
-            const { usecaseID } = query
+            const { usecaseID, search, sort_order, sort_by, } = query
+            
+            if (usecaseID || search || sort_order || sort_by) {
 
-            if (usecaseID) {
-                const useCase = await this.usecaseRepository.findOne({ where: { id: usecaseID } })
+                const query = this.usecaseRepository
+                    .createQueryBuilder("u")
 
+                if (search) {
+                    query.where("u.module ILIKE :search", { search: `%${search}%` })
+                        .orWhere("u.uc_name ILIKE :search", { search: `%${search}%` })
+                        .orWhere("u.uc_key ILIKE :search", { search: `%${search}%` })
+                }
+
+                if (sort_by && sort_order) {
+                    query.orderBy(`u.${sort_by}`, sort_order === 'DESC' ? 'DESC' : 'ASC')
+                }
+
+                const useCase = await query.getMany()
                 if (!useCase) throw new NotFoundException('Usecase does not exist!')
                 return useCase
             } else {
@@ -42,12 +55,12 @@ export class AdminService {
     // Add usecase
     async addUseCase(usecaseData: AddUseCaseDTO) {
         try {
-            const { module, uc_name, description, priority } = usecaseData
-            const useCaseExistance = await this.usecaseRepository.findOne({ where: { module, uc_name, description, priority } })
+            const { module, uc_name, uc_key, priority } = usecaseData
+            const useCaseExistance = await this.usecaseRepository.findOne({ where: { module, uc_name, uc_key, priority } })
 
             if (useCaseExistance) throw new ConflictException("Usecase already exists!")
 
-            const newUsecase = this.usecaseRepository.create({ module, description, uc_name, priority })
+            const newUsecase = this.usecaseRepository.create({ module, uc_key, uc_name, priority })
             return await this.usecaseRepository.save(newUsecase)
 
         } catch (error) {
@@ -89,57 +102,88 @@ export class AdminService {
     async getPermission(query: GetPermissionQueryDTO) {
         try {
             const { usecaseID, role } = query
-            const whereClause: any = {}
 
-            if (usecaseID) whereClause.usecase_id = { id: usecaseID }
-            if (role) whereClause.role = role
+            if (usecaseID || role) {
+                const queryDB = this.permissionRepository.createQueryBuilder('p').leftJoinAndSelect("p.usecase", "u")
+                if (usecaseID) queryDB.andWhere("u.id = :usecaseID", { usecaseID })
+                if (role) queryDB.andWhere("p.role = :role", { role: role })
 
-            const permissions = await this.permissionRepository.find({
-                where: whereClause,
-                relations: ['usecase_id']
-            })
-
-            if (permissions.length === 0) throw new NotFoundException('Permissions do not exist!')
-            return permissions
+                const permission = await queryDB.getMany()
+                if (!permission) throw new NotFoundException('Usecase does not exist!')
+                return permission
+            } else {
+                const queryDB = this.permissionRepository.createQueryBuilder('p').leftJoinAndSelect("p.usecase", "u")
+                const permission = await queryDB.getMany()
+                if (!permission) throw new NotFoundException('Usecase does not exist!')
+                return permission
+            }
         } catch (error) {
             throw new NotFoundException(`Permissions do not exist! ${error.message}`)
         }
     }
 
-    // Add permission
-    async addPermission(permissionData: AddPermissionDTO) {
+    // Update permission (Upsert)
+    async updatePermission(permissionData: { usecaseId: string, permissions: UpdatePermissionDTO[] }) {
         try {
-            const { usecase_id, role, ...rest } = permissionData
-            const usecase = await this.usecaseRepository.findOne({ where: { id: usecase_id } })
+            const { usecaseId, permissions } = permissionData
+
+            const usecase = await this.usecaseRepository.findOne({ where: { id: usecaseId } })
             if (!usecase) throw new NotFoundException('Usecase does not exist!')
 
-            const permissionExistance = await this.permissionRepository.findOne({
-                where: { usecase_id: { id: usecase_id }, role }
-            })
+            // Filter new permission
+            const newPermission = permissions.filter(permission => !permission.id).map(({ id, ...p }) => ({
+                ...p, usecase
+            }))
 
-            if (permissionExistance) throw new ConflictException("Permission already exists for this role and usecase!")
+            const { } = await this.permissionRepository.createQueryBuilder()
+                .insert()
+                .into(UseCasePermission)
+                .values(newPermission)
+                .execute()
 
-            const newPermission = this.permissionRepository.create({
-                usecase_id: usecase,
-                role,
-                ...rest
-            })
-            return await this.permissionRepository.save(newPermission)
-        } catch (error) {
-            throw new BadGatewayException(error.message)
-        }
-    }
+            // Permission case
+            const permissionUpdate = permissions.filter(p => p.id)
 
-    // Update permission
-    async updatePermission(permissionData: UpdatePermissionDTO) {
-        try {
-            const { id, ...updateData } = permissionData
-            const permission = await this.permissionRepository.findOne({ where: { id } })
+            const permissionIds = permissionUpdate.map(p => `'${p.id}'`).join(",")
 
-            if (!permission) throw new NotFoundException('Permission does not exist!')
+            const canViewCase = `CASE id
+                    ${permissionUpdate.map(p => `WHEN '${p.id}' THEN ${p.can_view ? true : false}`).join("\n")}
+                END`
 
-            await this.permissionRepository.update(id, updateData)
-            return await this.permissionRepository.findOne({ where: { id }, relations: ['usecase_id'] })
+            const canCreateCase = `CASE id
+                    ${permissionUpdate.map(p => `WHEN '${p.id}' THEN ${p.can_create ? true : false}`).join("\n")}
+                END`
+
+            const canEditCase = `CASE id
+                    ${permissionUpdate.map(p => `WHEN '${p.id}' THEN ${p.can_edit ? true : false}`).join("\n")}
+                END`
+
+            const canDeleteCase = `CASE id
+                    ${permissionUpdate.map(p => `WHEN '${p.id}' THEN ${p.can_delete ? true : false}`).join("\n")}
+                END`
+
+            const canApproveCase = `CASE id
+                    ${permissionUpdate.map(p => `WHEN '${p.id}' THEN ${p.can_approve ? true : false}`).join("\n")}
+                END`
+
+            const { } = await this.permissionRepository
+                .createQueryBuilder()
+                .update()
+                .set({
+                    can_view: () => canViewCase,
+                    can_create: () => canCreateCase,
+                    can_edit: () => canEditCase,
+                    can_delete: () => canDeleteCase,
+                    can_approve: () => canApproveCase
+                })
+                .where(`id IN (${permissionIds})`)
+                .execute()
+
+            return {
+                message: 'Update successful!',
+                data: {}
+            }
+
         } catch (error) {
             throw new BadGatewayException(error.message)
         }

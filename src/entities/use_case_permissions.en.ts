@@ -7,7 +7,7 @@ import { Role } from "src/enums/enums";
 import { UseCases } from "./use_cases.en";
 
 @Entity('use_case_permissions')
-@Index(['role', 'usecase_id'])
+@Index(['role', 'usecase'])
 export class UseCasePermission {
     @PrimaryGeneratedColumn('uuid')
     id: string
@@ -31,6 +31,6 @@ export class UseCasePermission {
     can_approve: boolean
 
     @ManyToOne(() => UseCases, (usecase) => usecase.usecase_permissions, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'usecase_id' })
-    usecase_id: UseCases
+    @JoinColumn({ name: 'usecase' })
+    usecase: UseCases
 }

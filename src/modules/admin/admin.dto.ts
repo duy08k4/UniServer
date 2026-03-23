@@ -9,6 +9,21 @@ export class GetUseCaseQueryDTO {
     @IsOptional()
     @IsString()
     usecaseID?: string;
+
+    @ApiProperty({ example: null, nullable: true, required: false })
+    @IsOptional()
+    @IsString()
+    search?: string;
+
+    @ApiProperty({ example: 'ASC', nullable: true, required: false })
+    @IsOptional()
+    @IsString()
+    sort_order?: 'ASC' | 'DESC';
+    
+    @ApiProperty({ example: null, nullable: true, required: false })
+    @IsOptional()
+    @IsString()
+    sort_by?: 'module' | 'uc_name' | 'description' | 'priority';
 }
 
 export class AddUseCaseDTO {
@@ -20,12 +35,12 @@ export class AddUseCaseDTO {
     @ApiProperty({ example: 'ACT_CN', required: true })
     @IsNotEmpty()
     @IsString()
-    uc_name: string
+    uc_key: string
     
     @ApiProperty({ example: 'Hành động mới', required: true })
     @IsNotEmpty()
     @IsString()
-    description: string
+    uc_name: string
     
     @ApiProperty({ example: PriorityCase.M_HAVE, required: true })
     @IsNotEmpty()
@@ -80,35 +95,34 @@ export class GetPermissionQueryDTO {
 }
 
 export class UpdatePermissionDTO {
-    @ApiProperty({ example: '84b5ae6a-837b-4cc0-a158-9dbf2b86e8e6', required: true })
-    @IsNotEmpty()
+    @ApiProperty({ example: '84b5ae6a-837b-4cc0-a158-9dbf2b86e8e6', required: false })
+    @IsOptional()
     @IsUUID()
-    id: string
+    id?: string
+
+    @ApiProperty({ example: Role.USER, required: false })
+    @IsEnum(Role)
+    role: Role
 
     @ApiProperty({ example: true, required: false })
-    @IsOptional()
     @IsBoolean()
-    can_view?: boolean
+    can_view: boolean
 
     @ApiProperty({ example: false, required: false })
-    @IsOptional()
     @IsBoolean()
-    can_create?: boolean
+    can_create: boolean
 
     @ApiProperty({ example: false, required: false })
-    @IsOptional()
     @IsBoolean()
-    can_edit?: boolean
+    can_edit: boolean
 
     @ApiProperty({ example: false, required: false })
-    @IsOptional()
     @IsBoolean()
-    can_delete?: boolean
+    can_delete: boolean
 
     @ApiProperty({ example: false, required: false })
-    @IsOptional()
     @IsBoolean()
-    can_approve?: boolean
+    can_approve: boolean
 }
 
 export class AddPermissionDTO {

@@ -6,6 +6,17 @@ export enum Role {
   LECTURER = "lecturer",
 }
 
+export enum MainRole {
+  USER = "user",
+  UNIADMIN = "uniadmin",
+}
+
+export enum RoomRole {
+  ROOMADMIN = "roomadmin",
+  STUDENT = "student",
+  LECTURER = "lecturer",
+}
+
 export enum Field_Type {
   STRING = "string",
   NUMBER = "number",

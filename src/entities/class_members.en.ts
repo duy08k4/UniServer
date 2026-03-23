@@ -1,19 +1,18 @@
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
-import { Role } from "src/enums/enums";
+import { RoomRole } from "src/enums/enums";
 import { Classes } from "./classes.en";
 import { Users } from "./user.en";
 
 @Entity('class_members')
-@Check(`"role" IN ('${Role.ROOMADMIN}', '${Role.STUDENT}', '${Role.LECTURER}')`)
 @Index(['class', 'user'], { unique: true })
 export class ClassMembers {
     @PrimaryGeneratedColumn('uuid')
     id : string
 
-    @Column({ type: 'enum', enum: Role, default: Role.STUDENT })
-    role : Role
+    @Column({ type: 'enum', enum: RoomRole, default: RoomRole.STUDENT })
+    role : RoomRole
     
     @Column({ type: 'boolean', default: false })
     is_committee_member : boolean

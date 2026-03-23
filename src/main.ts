@@ -12,11 +12,18 @@ async function bootstrap() {
       transform: true
     })
   )
+
+  app.enableCors({
+    origin: [
+      "http://localhost:5173",
+      process.env.CLIENT_DOMAIN
+    ],
+    credentials: true
+  })
   const config = new DocumentBuilder()
     .setTitle('Uni Server API')
     .setDescription('The Uni Server API description')
     .setVersion('1.0')
-    .addTag('UniServer')
     .addBearerAuth({
       type: 'http',
       scheme: 'bearer',

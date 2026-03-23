@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
 import { createClient, Session, SupabaseClient, UserResponse } from "@supabase/supabase-js";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -7,6 +7,9 @@ import { ConfigService } from "@nestjs/config";
 // Dto
 import { RequireResetPassword, SignInDTO, SignUpDTO, UpdatePassword } from "./auth.dto";
 import { Users } from "src/entities/user.en";
+
+// Type
+import { Request } from "express";
 
 @Injectable()
 export class AuthService {
@@ -20,6 +23,25 @@ export class AuthService {
         const supabaseURL = this.configService.get('SUPABASE_URL')
         const supabaseKEY = this.configService.get('SUPABASE_ANON_KEY')
         this.supabase = createClient(supabaseURL, supabaseKEY)
+    }
+
+    // Auth me
+    async authMe(query: { isUserData: boolean }, req: | any) {
+        try {
+            const userEmail = req.user.data.user.email
+
+            if (!query.isUserData) return true
+
+            const user = await this.usersRepository.findOne({ where: { email: userEmail } })
+
+            if (!user) throw new ConflictException("User data is missing")
+
+            return user
+
+        } catch (error) {
+            console.error(error)
+            throw new UnauthorizedException("Unauthorized")
+        }
     }
 
     // Signup
@@ -41,6 +63,7 @@ export class AuthService {
             })
 
             if (error) {
+                if (error.status === 409) throw new ConflictException(error.message)
                 throw new BadRequestException(error.message)
             }
 

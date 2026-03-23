@@ -16,14 +16,14 @@ export class UseCases {
   module: string
 
   @Column({ type: 'varchar' })
-  uc_name: string
-
+  uc_name : string
+  
   @Column({ type: 'varchar' })
-  description: string
+  uc_key: string
 
   @Column({ type: 'enum', enum: PriorityCase, default: PriorityCase.M_HAVE })
   priority: PriorityCase
 
-  @OneToMany(() => UseCasePermission, (usecase_permission) => usecase_permission.usecase_id)
+  @OneToMany(() => UseCasePermission, (usecase_permission) => usecase_permission.usecase)
   usecase_permissions: UseCasePermission[]
 }
