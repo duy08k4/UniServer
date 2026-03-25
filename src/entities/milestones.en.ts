@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Users } from "./user.en";
 import { Progresses } from "./progresses.en";
 import { Forms } from "./forms.en";
@@ -28,7 +28,7 @@ export class Milestones {
     @Column({ type: 'timestamptz' })
     updated_at: Date
 
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date
 
     // Relations

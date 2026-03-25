@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Classes } from "./classes.en";
 import { Users } from "./user.en";
 
@@ -17,7 +17,7 @@ export class Notifications {
     @Column({ type: 'boolean', default: false })
     email_notification_enabled: boolean
 
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date
 
     @UpdateDateColumn({ type: 'timestamptz' })

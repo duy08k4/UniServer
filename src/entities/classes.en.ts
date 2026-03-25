@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Users } from "./user.en";
 import { ClassMembers } from "./class_members.en";
 import { Progresses } from "./progresses.en";
@@ -36,7 +36,7 @@ export class Classes {
     @Column({ type: 'boolean', default: false })
     is_banned: boolean
 
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date
 
     @UpdateDateColumn({ type: 'timestamptz' })

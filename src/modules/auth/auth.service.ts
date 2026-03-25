@@ -7,9 +7,7 @@ import { ConfigService } from "@nestjs/config";
 // Dto
 import { RequireResetPassword, SignInDTO, SignUpDTO, UpdatePassword } from "./auth.dto";
 import { Users } from "src/entities/user.en";
-
-// Type
-import { Request } from "express";
+import { UseCasePermission } from "src/entities/use_case_permissions.en";
 
 @Injectable()
 export class AuthService {
@@ -18,7 +16,9 @@ export class AuthService {
     constructor(
         private configService: ConfigService,
         @InjectRepository(Users)
-        private usersRepository: Repository<Users>
+        private usersRepository: Repository<Users>,
+        @InjectRepository(UseCasePermission)
+        private permissionRepository: Repository<UseCasePermission>
     ) {
         const supabaseURL = this.configService.get('SUPABASE_URL')
         const supabaseKEY = this.configService.get('SUPABASE_ANON_KEY')
@@ -234,7 +234,7 @@ export class AuthService {
 
         } catch (error) {
             if (error instanceof InternalServerErrorException) throw new InternalServerErrorException(error.message)
-            if (error instanceof BadRequestException) throw new BadRequestException(error.message)
+            throw new BadRequestException(error.message)
         }
     }
 }

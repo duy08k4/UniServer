@@ -1,4 +1,4 @@
-import { Check, Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { RoomRole } from "src/enums/enums";
@@ -13,6 +13,9 @@ export class ClassMembers {
 
     @Column({ type: 'enum', enum: RoomRole, default: RoomRole.STUDENT })
     role : RoomRole
+
+    @Column({ type: 'boolean', default: false })
+    roomadmin_approved : boolean
     
     @Column({ type: 'boolean', default: false })
     is_committee_member : boolean
@@ -26,7 +29,7 @@ export class ClassMembers {
     @Column({ type: 'boolean', default: false })
     can_create_score_forms : boolean
     
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     joined_at : Date
     
     @UpdateDateColumn({ type: 'timestamptz' })

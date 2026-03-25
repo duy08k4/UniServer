@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { Field_Type } from "src/enums/enums";
@@ -32,7 +32,7 @@ export class Checkbox_fields {
     @Column({ type: 'boolean', default: false })
     is_multiple : boolean
     
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at : Date
 
     @UpdateDateColumn({ type: 'timestamptz' })

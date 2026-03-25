@@ -21,14 +21,27 @@ export class RoleGuard implements CanActivate {
         const request = context.switchToHttp().getRequest()
         const userEmail = request.user.data.user.email
 
-        const userRole = (await this.userRepository
-        .createQueryBuilder('users')
-        .select('users.role', 'role')
-        .where('users.email = :email', { email: userEmail })
-        .getRawOne()).role
+        const user = (await this.userRepository
+            .createQueryBuilder('u')
+            .select([
+                'u.id AS id',
+                'u.supabase_id AS supabase_id',
+                'u.full_name AS full_name',
+                'u.email AS email',
+                'u.is_banned AS is_banned',
+                'u.is_deleted AS is_deleted',
+                'u.role AS role',
+                'u.phone_number AS phone_number',
+                'u.created_at AS created_at',
+                'u.updated_at AS updated_at'
+            ])
+            .where('u.email = :email', { email: userEmail })
+            .getRawOne())
 
-        if (!roles.includes(userRole)) throw new ForbiddenException("Access denied")
+        if (!roles.includes(user.role)) throw new ForbiddenException("Access denied")
 
+        request.role = user.role
+        request.userData = user
         return true
     }
 }

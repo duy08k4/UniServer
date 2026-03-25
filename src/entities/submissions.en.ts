@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Forms } from "./forms.en";
 import { Users } from "./user.en";
 import { SubmissionAnswers } from "./submission_answers.en";
@@ -10,7 +10,7 @@ export class Submissions {
     @PrimaryGeneratedColumn('uuid')
     id: string
 
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date
     
     @UpdateDateColumn({ type: 'timestamptz' })

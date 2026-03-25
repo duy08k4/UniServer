@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { ScoreForm_Type } from "src/enums/enums";
@@ -46,7 +46,7 @@ export class ScoreForms {
     @Column({ type: 'timestamptz' })
     close_at : Date
     
-    @Column({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at : Date
     
     @UpdateDateColumn({ type: 'timestamptz' })
