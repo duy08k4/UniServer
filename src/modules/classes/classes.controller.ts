@@ -1,12 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 // Decorator
 import { Roles } from "src/decorators/roles.decorator";
 
 // DTO
 import { ApprovedClassDTO, CreateClassDTO, GetClassDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO } from "./classes.dto";
-import { MainRole, Role, RoomRole } from "src/enums/enums";
+import { MainRole, Role } from "src/enums/enums";
 
 // Guard
 import { AuthGuard } from "../auth/auth.guard";
@@ -33,51 +33,52 @@ export class ClassesController {
         return await this.classesService.approveNewClass(query.classId);
     }
 
-    // Get class
-    @Get()
+    // Get classes
+    @Get('all')
     @ApiOperation({ summary: 'Get classes for render' })
     @ApiResponse({
         status: 200,
-        description: 'Thành công',
+        description: 'Example paginated class list with createdBy and owner',
         schema: {
-            type: 'object',
-            properties: {
-                data: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            id: { type: 'string', example: '262cb2d1-d0cd-451b-9474-5c9453c9335f' },
-                            join_code: { type: 'string', example: 'GRebRc' },
-                            label: { type: 'string', example: 'Lớp Công nghệ phần mềm 2' },
-                            description: { type: 'string', example: 'string' },
-                            subject: { type: 'string', example: 'Software Engineering' },
-                            created_approval: { type: 'boolean', example: false },
-                            required_join_form: { type: 'boolean', example: true },
-                            required_approval: { type: 'boolean', example: true },
-                            is_banned: { type: 'boolean', example: false },
-                            is_deleted: { type: 'boolean', example: false },
-                            created_at: { type: 'string', example: '2026-03-24T19:25:04.545Z' },
-                            createdby: { type: 'string', example: 'd5105d88-d54c-463f-a24e-52c92921dde2' },
-                            counts: {
-                                type: 'object',
-                                properties: {
-                                    student: { type: 'number', example: 0 },
-                                    lecturer: { type: 'number', example: 0 },
-                                    committee: { type: 'number', example: 0 }
-                                }
-                            }
+            example: {
+                data: [
+                    {
+                        id: '98dfcd84-cb7b-49ad-9083-98f8e7230dfd',
+                        join_code: 'imyzvX',
+                        label: 'Lớp Công nghệ phần mềm',
+                        description: 'string',
+                        subject: 'Software Engineering',
+                        created_approval: false,
+                        required_join_form: false,
+                        required_approval: false,
+                        is_banned: false,
+                        is_deleted: false,
+                        created_at: '2026-03-26T01:29:35.354Z',
+                        updated_at: '2026-03-26T02:14:00.348Z',
+                        roleClass: "student || null",
+                        createdBy: {
+                            id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
+                            full_name: 'Nguyen Van A',
+                            email: 'duytran.290804@gmail.com',
+                            role: 'user'
+                        },
+                        counts: {
+                            student: 0,
+                            lecturer: 0,
+                            committee: 0,
+                            pending: 0
+                        },
+                        owner: {
+                            full_name: 'Nguyen Van A',
+                            email: 'duytran.290804@gmail.com'
                         }
                     }
-                },
+                ],
                 pagination: {
-                    type: 'object',
-                    properties: {
-                        page: { type: 'number', example: 1 },
-                        size: { type: 'number', example: 20 },
-                        total_classes: { type: 'number', example: 1 },
-                        totalPage: { type: 'number', example: 0 }
-                    }
+                    page: 1,
+                    size: 20,
+                    total_classes: 1,
+                    totalPage: 0
                 }
             }
         }
@@ -86,9 +87,96 @@ export class ClassesController {
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
     @ApiResponse({ status: 404, description: 'User not found' })
-    @Roles(Role.UNIADMIN, Role.USER)
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
     async getClass(@Query() query: GetClassDTO, @Req() req: Request) {
         return this.classesService.getClass(query, req)
+    }
+
+    // Get a class
+    @Get('one')
+    @ApiOperation({ summary: 'Get data of one class' })
+    @ApiQuery({ name: 'classId', type: String, description: 'ID of the class' })
+    @ApiResponse({
+        status: 200,
+        description: 'Example paginated class list with createdBy and owner',
+        schema: {
+            example: {
+                id: '98dfcd84-cb7b-49ad-9083-98f8e7230dfd',
+                join_code: 'imyzvX',
+                label: 'Lớp Công nghệ phần mềm',
+                description: 'string',
+                subject: 'Software Engineering',
+                created_approval: false,
+                required_join_form: false,
+                required_approval: false,
+                is_banned: false,
+                is_deleted: false,
+                created_at: '2026-03-26T01:29:35.354Z',
+                updated_at: '2026-03-26T02:14:00.348Z',
+                roleClass: "student || null",
+                createdBy: {
+                    id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com',
+                    role: 'user'
+                },
+                counts: {
+                    student: 0,
+                    lecturer: 0,
+                    committee: 0,
+                    pending: 0
+                },
+                owner: {
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com'
+                }
+            }
+        }
+    })
+    @ApiResponse({ status: 400, description: 'Bad request' })
+    @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
+    @ApiResponse({ status: 404, description: 'Class not found' })
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async getOneClass(@Query() query: { classId: string }, @Req() req: Request) {
+        return await this.classesService.getOneClass(query, req);
+    }
+
+    // Get member
+    @Get('one/members')
+    @ApiOperation({ summary: 'Get member of one class' })
+    @ApiQuery({ name: 'classId', type: String, description: 'ID of the class' })
+    @ApiResponse({
+        status: 200,
+        description: 'Example list of class members',
+        schema: {
+            example: [
+                {
+                    id: '961722c8-19ff-466d-8029-6cfe9d5e59b8',
+                    role: 'lecturer',
+                    roomadmin_approved: false,
+                    is_committee_member: false,
+                    can_create_notifications: false,
+                    can_create_forms: false,
+                    can_create_score_forms: false,
+                    joined_at: '2026-03-25T13:11:14.794Z',
+                    updated_at: '2026-03-25T16:33:06.729Z',
+                    user: {
+                        id: 'ef7c680f-a1a9-4d8d-b926-564d39b954fd',
+                        full_name: 'Nguyen Van B',
+                        email: '22166013@st.hcmuaf.edu.vn'
+                    }
+                }
+            ]
+        }
+    })
+    @ApiResponse({ status: 400, description: 'Bad request' })
+    @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
+    @ApiResponse({ status: 404, description: 'Class not found' })
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async getMember(@Query() query: { classId: string }, @Req() req: Request) {
+        return await this.classesService.getMember(query, req);
     }
 
     // Create a new class
@@ -97,39 +185,37 @@ export class ClassesController {
     @ApiBody({ type: CreateClassDTO })
     @ApiResponse({
         status: 201,
-        description: 'Success',
+        description: 'Class created successfully',
         schema: {
-            type: 'object',
-            properties: {
-                message: {
-                    type: 'string',
-                    example: 'Success'
+            example: {
+                id: '30593d7c-74e9-4d6c-9476-ac5fa779d449',
+                join_code: '93Bh4D',
+                label: 'Lớp Công nghệ phần mềm',
+                description: 'string',
+                subject: 'Software Engineering',
+                created_approval: false,
+                required_approval: false,
+                required_join_form: false,
+                is_deleted: false,
+                is_banned: false,
+                created_at: '2026-03-26T02:14:00.348Z',
+                updated_at: '2026-03-26T02:14:00.348Z',
+                roleClass: "student || null",
+                createdBy: {
+                    id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com',
+                    role: 'uniadmin'
                 },
-                data: {
-                    type: 'object',
-                    properties: {
-                        id: { type: 'string', example: '6914cc08-1753-4863-be11-e2346fcfdaae' },
-                        join_code: { type: 'string', example: 'wQ9_R5' },
-                        label: { type: 'string', example: 'Lớp Công nghệ phần mềm' },
-                        description: { type: 'string', example: 'string' },
-                        subject: { type: 'string', example: 'Software Engineering' },
-                        created_approval: { type: 'boolean', example: false },
-                        required_approval: { type: 'boolean', example: false },
-                        required_join_form: { type: 'boolean', example: false },
-                        is_deleted: { type: 'boolean', example: false },
-                        is_banned: { type: 'boolean', example: false },
-                        created_at: { type: 'string', format: 'date-time', example: '2026-03-24T06:49:30.451Z' },
-                        updated_at: { type: 'string', format: 'date-time', example: '2026-03-24T06:49:30.451Z' },
-                        createdBy: {
-                            type: 'object',
-                            properties: {
-                                id: { type: 'string', example: 'd5105d88-d54c-463f-a24e-52c92921dde4' },
-                                full_name: { type: 'string', example: 'Nguyen Van A' },
-                                email: { type: 'string', example: 'duytran.290804@gmail.com' },
-                                role: { type: 'string', example: 'uniadmin' }
-                            }
-                        }
-                    }
+                counts: {
+                    student: 0,
+                    lecturer: 0,
+                    committee: 0,
+                    pending: 0
+                },
+                owner: {
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com'
                 }
             }
         }
@@ -145,7 +231,43 @@ export class ClassesController {
     @Post('join')
     @ApiOperation({ summary: 'Join a class using a code or class ID' })
     @ApiBody({ type: JoinClassDTO })
-    @ApiResponse({ status: 200, description: 'Joined class successfully' })
+    @ApiResponse({
+        status: 201,
+        description: 'Class created successfully',
+        schema: {
+            example: {
+                id: '30593d7c-74e9-4d6c-9476-ac5fa779d449',
+                join_code: '93Bh4D',
+                label: 'Lớp Công nghệ phần mềm',
+                description: 'string',
+                subject: 'Software Engineering',
+                created_approval: false,
+                required_approval: false,
+                required_join_form: false,
+                is_deleted: false,
+                is_banned: false,
+                created_at: '2026-03-26T02:14:00.348Z',
+                updated_at: '2026-03-26T02:14:00.348Z',
+                roleClass: "student || null",
+                createdBy: {
+                    id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com',
+                    role: 'uniadmin'
+                },
+                counts: {
+                    student: 0,
+                    lecturer: 0,
+                    committee: 0,
+                    pending: 0
+                },
+                owner: {
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com'
+                }
+            }
+        }
+    })
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
     @ApiResponse({ status: 404, description: 'Class not found' })
@@ -190,9 +312,9 @@ export class ClassesController {
         return this.classesService.removeClass(query)
     }
 
-    // Remove a class
+    // Remove a member
     @Delete('member')
-    @ApiOperation({ summary: 'Remove a class' })
+    @ApiOperation({ summary: 'Remove a member' })
     @ApiResponse({ status: 200, description: 'Class removed successfully' })
     @ApiResponse({ status: 400, description: 'Bad request' })
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })

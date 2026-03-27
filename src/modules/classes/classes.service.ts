@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { CreateClassDTO, GetClassDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO } from "./classes.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Users } from "src/entities/user.en";
-import { Brackets, DataSource, Repository } from "typeorm";
+import { Brackets, DataSource, ILike, In, Or, Raw, Repository } from "typeorm";
 import { Classes } from "src/entities/classes.en";
 import { nanoid } from "nanoid";
 import { ClassGateway } from "../websocket/class.gateway";
@@ -52,64 +52,75 @@ export class ClassesService {
 
         const pageSize = size ? Number.parseInt(size) : 20
         const userRole = req.role
-        let allClass
-        let totalClasses
+        let handledClasses
 
         if (userRole === Role.UNIADMIN) {
-            totalClasses = await this.classRepo.count()
+            const [classes, _] = await this.classRepo.findAndCount({
+                select: {
+                    id: true,
+                    join_code: true,
+                    label: true,
+                    description: true,
+                    subject: true,
+                    created_approval: true,
+                    required_approval: true,
+                    required_join_form: true,
+                    is_deleted: true,
+                    is_banned: true,
+                    created_at: true,
+                    updated_at: true,
+                    createdBy: true
+                },
+                relations: {
+                    members: {
+                        user: true
+                    },
+                    createdBy: true
+                },
+                where: search ? [
+                    {
+                        label: Raw((alias) => `(
+                            unaccent(${alias}) ILIKE unaccent(:search) OR
+                            unaccent(subject) ILIKE unaccent(:search)
+                        )`, { search: `%${search}%` })
+                    },
+                    { members: { user: { full_name: ILike(`%${search}%`) } } },
+                    { members: { user: { email: ILike(`%${search}%`) } } }
+                ] : {},
+                order: {
+                    created_at: 'DESC'
+                },
+                take: pageSize,
+                skip: (Number.parseInt(page) - 1) * pageSize
+            })
 
-            allClass = await this.classRepo.createQueryBuilder("c")
-                .leftJoin('c.members', 'm')
-                .leftJoin('c.members', 'owner', 'owner.role = :roomAdminRole')
-                .leftJoin('owner.user', 'ownerUser')
-                .where(new Brackets(qb => {
-                    if (search) {
-                        qb.where('unaccent(c.label) ILIKE unaccent(:searchTerm)')
-                            .orWhere('unaccent(c.subject) ILIKE unaccent(:searchTerm)')
-                            .orWhere('unaccent("ownerUser"."full_name") ILIKE unaccent(:searchTerm)')
-                            .orWhere('unaccent("ownerUser"."email") ILIKE unaccent(:searchTerm)');
-                    }
-                }))
-                .select([
-                    'c.id AS id',
-                    'c.join_code AS join_code',
-                    'c.label AS label',
-                    'c.description AS description',
-                    'c.subject AS subject',
-                    'c.created_approval AS created_approval',
-                    'c.required_join_form AS required_join_form',
-                    'c.required_approval AS required_approval',
-                    'c.is_banned AS is_banned',
-                    'c.is_deleted AS is_deleted',
-                    'c.created_at AS created_at',
-                    'c.createdBy AS createdBy'
-                ])
-                .addSelect(`
-                    json_build_object(
-                        'student', COUNT(CASE WHEN m.role = :studentRole THEN 1 END),
-                        'lecturer', COUNT(CASE WHEN m.role = :lecturerRole THEN 1 END),
-                        'committee', COUNT(CASE WHEN m.is_committee_member = :committee THEN 1 END)
-                    )`,
-                    'counts'
-                )
-                .addSelect(`
-                    json_build_object(
-                        'full_name', "ownerUser"."full_name",
-                        'email', "ownerUser"."email"
-                    )`,
-                    'owner',
-                )
-                .setParameters({
-                    studentRole: RoomRole.STUDENT,
-                    lecturerRole: RoomRole.LECTURER,
-                    committee: 'true',
-                    roomAdminRole: RoomRole.ROOMADMIN,
-                    searchTerm: `%${search}%`
-                })
-                .groupBy('c.id, ownerUser.full_name, ownerUser.email')
-                .skip((Number.parseInt(page) - 1) & pageSize)
-                .take(pageSize)
-                .getRawMany()
+            handledClasses = classes.map((c: Classes) => {
+                const ownerMember = c.members.find(m => m.role === RoomRole.ROOMADMIN);
+                const userInClass = c.members.find(m => m.user.id === userId)
+                const { members, ...classData } = {
+                    ...c,
+                    roleClass: userInClass ? userInClass.role : null,
+                    createdBy: {
+                        id: c.createdBy.id,
+                        full_name: c.createdBy.full_name,
+                        email: c.createdBy.email,
+                        role: c.createdBy.role
+                    },
+                    counts: {
+                        student: c.members.filter(m => m.role === RoomRole.STUDENT && m.roomadmin_approved).length,
+                        lecturer: c.members.filter(m => m.role === RoomRole.LECTURER && m.roomadmin_approved).length,
+                        committee: c.members.filter(m => m.role === RoomRole.LECTURER && m.is_committee_member && m.roomadmin_approved).length,
+                        pending: c.members.filter(m => !m.roomadmin_approved).length
+                    },
+                    owner: ownerMember ? {
+                        full_name: ownerMember.user.full_name,
+                        email: ownerMember.user.email
+                    } : null
+                }
+
+
+                return classData
+            })
 
         } else {
             if (!userId) throw new BadRequestException("Bad request")
@@ -118,73 +129,212 @@ export class ClassesService {
 
             if (!userExistance) throw new NotFoundException("User not found")
 
-            totalClasses = await this.classRepo.count({ where: { members: { user: { id: userId } } } })
+            const userClasses = (await this.classRepo.find({
+                select: { id: true },
+                where: {
+                    members: { user: { id: userId } },
+                    is_deleted: false
+                }
+            })).flatMap(user => user.id)
 
-            allClass = await this.classRepo.createQueryBuilder("c")
-                .leftJoin('c.members', 'm')
-                .leftJoin('m.user', 'u')
-                .leftJoin('c.members', 'owner', 'owner.role = :roomAdminRole')
-                .leftJoin('owner.user', 'ownerUser')
-                .where(new Brackets(qb => {
-                    if (search) {
-                        qb.where('unaccent(c.label) ILIKE unaccent(:searchTerm)')
-                            .orWhere('unaccent(c.subject) ILIKE unaccent(:searchTerm)')
-                            .orWhere('unaccent("ownerUser"."full_name") ILIKE unaccent(:searchTerm)')
-                            .orWhere('unaccent("ownerUser"."email") ILIKE unaccent(:searchTerm)');
+            const [classes, _] = await this.classRepo.findAndCount({
+                join: {
+                    alias: "class",
+                    leftJoinAndSelect: {
+                        members: 'class.members',
+                        user: 'members.user',
+                        createdBy: 'class.createdBy'
                     }
-                }))
-                .select([
-                    'c.id AS id',
-                    'c.join_code AS join_code',
-                    'c.label AS label',
-                    'c.description AS description',
-                    'c.subject AS subject',
-                    'c.created_approval AS created_approval',
-                    'c.required_join_form AS required_join_form',
-                    'c.required_approval AS required_approval',
-                    'c.is_banned AS is_banned',
-                    'c.is_deleted AS is_deleted',
-                    'c.created_at AS created_at',
-                    'c.createdBy AS createdBy',
-                ])
-                .addSelect(` 
-                    json_build_object(
-                        'student', COUNT(CASE WHEN m.role = :studentRole THEN 1 END),
-                        'lecturer', COUNT(CASE WHEN m.role = :lecturerRole THEN 1 END),
-                        'committee', COUNT(CASE WHEN m.is_committee_member = :committee THEN 1 END)
-                    )`,
-                    'counts'
-                )
-                .addSelect(`
-                    json_build_object(
-                        'full_name', "ownerUser"."full_name",
-                        'email', "ownerUser"."email"
-                    )`,
-                    'owner',
-                )
-                .setParameters({
-                    studentRole: RoomRole.STUDENT,
-                    lecturerRole: RoomRole.LECTURER,
-                    committee: 'true',
-                    roomAdminRole: RoomRole.ROOMADMIN,
-                    searchTerm: `%${search}%`
-                })
-                .where('u.id = :id', { id: userId })
-                .groupBy(`c.id, ownerUser.full_name, ownerUser.email`)
-                .skip((Number.parseInt(page) - 1) * pageSize)
-                .take(pageSize)
-                .getRawMany()
+                },
+                select: {
+                    id: true,
+                    join_code: true,
+                    label: true,
+                    description: true,
+                    subject: true,
+                    created_approval: true,
+                    required_approval: true,
+                    required_join_form: true,
+                    is_deleted: true,
+                    is_banned: true,
+                    created_at: true,
+                    updated_at: true,
+                    createdBy: true
+                },
+                where: search ? [
+                    {
+                        id: In(userClasses),
+                        is_deleted: false,
+                        label: Raw((alias) => `(
+                            unaccent(${alias}) ILIKE unaccent(:search) OR
+                            unaccent(subject) ILIKE unaccent(:search)
+                        )`, { search: `%${search}%` })
+                    },
+                    {
+                        id: In(userClasses),
+                        is_deleted: false,
+                        members: { user: { full_name: ILike(`%${search}%`) } }
+                    },
+                    {
+                        id: In(userClasses),
+                        is_deleted: false,
+                        members: { user: { email: ILike(`%${search}%`) } }
+                    }
+                ] : {
+                    id: In(userClasses),
+                    is_deleted: false,
+                },
+                order: {
+                    created_at: 'DESC'
+                },
+                take: pageSize,
+                skip: (Number.parseInt(page) - 1) * pageSize
+            })
+
+            handledClasses = classes.map((c: Classes) => {
+                const ownerMember = c.members.find(m => m.role === RoomRole.ROOMADMIN);
+                const userInClass = c.members.find(m => m.user.id === userId)
+                const { members, ...classData } = {
+                    ...c,
+                    roleClass: userInClass ? userInClass.role : null,
+                    createdBy: {
+                        id: c.createdBy.id,
+                        full_name: c.createdBy.full_name,
+                        email: c.createdBy.email,
+                        role: c.createdBy.role
+                    },
+                    counts: {
+                        student: c.members.filter(m => m.role === RoomRole.STUDENT && m.roomadmin_approved).length,
+                        lecturer: c.members.filter(m => m.role === RoomRole.LECTURER && m.roomadmin_approved).length,
+                        committee: c.members.filter(m => m.role === RoomRole.LECTURER && m.is_committee_member && m.roomadmin_approved).length,
+                        pending: c.members.filter(m => !m.roomadmin_approved).length
+                    },
+                    owner: ownerMember ? {
+                        full_name: ownerMember.user.full_name,
+                        email: ownerMember.user.email
+                    } : null
+                }
+
+                return classData
+            })
         }
 
+
         return {
-            data: allClass,
+            data: handledClasses,
             pagination: {
                 page: Number.parseInt(page),
                 size: pageSize,
-                total_classes: totalClasses,
-                totalPage: Math.round(totalClasses / pageSize)
+                total_classes: handledClasses.length,
+                totalPage: Math.ceil(handledClasses.length / pageSize)
             }
         }
+    }
+
+    // Get one class
+    async getOneClass(query: { classId: string }, req: Request | any) {
+        const { classId } = query
+        if (!classId) throw new BadRequestException("Bad request")
+        const userData = req.userData
+        const classExistance = await this.classRepo.findOne({
+            where: { id: classId, members: { user: { email: userData.email, id: userData.id } } },
+            relations: { members: { user: true } }
+        })
+
+        if (!classExistance) throw new NotFoundException("Class not found")
+
+        const userId = req.userData.id
+
+        const userClasses = (await this.classRepo.find({
+            select: { id: true },
+            where: {
+                members: { user: { id: userId } },
+                is_deleted: false
+            }
+        })).flatMap(user => user.id)
+
+        const [classes, _] = await this.classRepo.findAndCount({
+            select: {
+                id: true,
+                join_code: true,
+                label: true,
+                description: true,
+                subject: true,
+                created_approval: true,
+                required_approval: true,
+                required_join_form: true,
+                is_deleted: true,
+                is_banned: true,
+                created_at: true,
+                updated_at: true,
+                createdBy: true
+            },
+            relations: {
+                members: {
+                    user: true
+                },
+                createdBy: true
+            },
+            where: {
+                id: In(userClasses.filter(id => id === classId))
+            },
+            order: {
+                created_at: 'DESC'
+            },
+
+        })
+
+        const handledClasses = classes.map((c: Classes) => {
+            const ownerMember = c.members.find(m => m.role === RoomRole.ROOMADMIN);
+            const userInClass = c.members.find(m => m.user.id === userId)
+            const { members, ...classData } = {
+                ...c,
+                roleClass: userInClass ? userInClass.role : null,
+                createdBy: {
+                    id: c.createdBy.id,
+                    full_name: c.createdBy.full_name,
+                    email: c.createdBy.email,
+                    role: c.createdBy.role
+                },
+                counts: {
+                    student: c.members.filter(m => m.role === RoomRole.STUDENT && m.roomadmin_approved).length,
+                    lecturer: c.members.filter(m => m.role === RoomRole.LECTURER && m.roomadmin_approved).length,
+                    committee: c.members.filter(m => m.role === RoomRole.LECTURER && m.is_committee_member && m.roomadmin_approved).length,
+                    pending: c.members.filter(m => !m.roomadmin_approved).length
+                },
+                owner: ownerMember ? {
+                    full_name: ownerMember.user.full_name,
+                    email: ownerMember.user.email
+                } : null
+            }
+
+
+            return classData
+        })
+
+        console.log(handledClasses)
+
+        return handledClasses[0]
+    }
+
+    // Get member in one class
+    async getMember(query: { classId: string }, req: Request | any) {
+        const { classId } = query
+
+        if (!classId) throw new BadRequestException("Bad request")
+        const userData = req.userData
+        const classExistance = await this.classRepo.findOne({ where: { id: classId, members: { user: { email: userData.email } } } })
+
+        if (!classExistance) throw new NotFoundException("Class not found")
+
+        const getAllMember = await this.classMemberRepo.find({
+            where: { class: { id: classId } },
+            relations: ['user'],
+            select: {
+                user: { id: true, email: true, full_name: true }
+            }
+        })
+        return getAllMember
     }
 
     // Create a new class
@@ -206,23 +356,42 @@ export class ClassesService {
             } while (await this.classRepo.findOne({ where: { join_code: joinCode } }))
 
             // Create class
-            const newClass = await this.classRepo.create({
+            const newClass = this.classRepo.create({
                 join_code: joinCode,
-                label, subject, description,
+                label, subject,
+                description: description ? description : undefined,
+                created_approval: false,
+                required_approval: true,
                 createdBy: { id: user.id, email: user.email, full_name: user.full_name, role: user.role }
             })
 
             await this.classRepo.save(newClass)
 
-            const newMember = await this.classMemberRepo.create({
+            const newMember = this.classMemberRepo.create({
                 role: RoomRole.ROOMADMIN,
                 class: newClass,
+                roomadmin_approved: true,
                 user: user
             })
 
             await this.classMemberRepo.save(newMember)
 
-            return newClass
+            const newClassResponse = {
+                ...newClass,
+                roleClass: RoomRole.ROOMADMIN,
+                counts: {
+                    student: 0,
+                    lecturer: 0,
+                    committee: 0,
+                    pending: 0
+                },
+                owner: {
+                    full_name: user.full_name,
+                    email: user.email
+                }
+            }
+
+            return newClassResponse
 
         } catch (error) {
             throw new BadRequestException(error.message)
@@ -290,10 +459,65 @@ export class ClassesService {
 
         await this.classMemberRepo.save(newMember)
 
-        return {
-            message: 'Joined',
-            data: {}
-        }
+        const [classes, _] = await this.classRepo.findAndCount({
+            select: {
+                id: true,
+                join_code: true,
+                label: true,
+                description: true,
+                subject: true,
+                created_approval: true,
+                required_approval: true,
+                required_join_form: true,
+                is_deleted: true,
+                is_banned: true,
+                created_at: true,
+                updated_at: true,
+                createdBy: true
+            },
+            relations: {
+                members: {
+                    user: true
+                },
+                createdBy: true
+            },
+            where: {
+                is_deleted: false,
+                id: classExistance.id
+            },
+            order: {
+                created_at: 'DESC'
+            },
+        })
+
+        const handledClasses = classes.map((c: Classes) => {
+            const ownerMember = c.members.find(m => m.role === RoomRole.ROOMADMIN);
+            const userInClass = c.members.find(m => m.user.id === userId)
+            const { members, ...classData } = {
+                ...c,
+                roleClass: userInClass ? userInClass.role : null,
+                createdBy: {
+                    id: c.createdBy.id,
+                    full_name: c.createdBy.full_name,
+                    email: c.createdBy.email,
+                    role: c.createdBy.role
+                },
+                counts: {
+                    student: c.members.filter(m => m.role === RoomRole.STUDENT && m.roomadmin_approved).length,
+                    lecturer: c.members.filter(m => m.role === RoomRole.LECTURER && m.roomadmin_approved).length,
+                    committee: c.members.filter(m => m.role === RoomRole.LECTURER && m.is_committee_member && m.roomadmin_approved).length,
+                    pending: c.members.filter(m => !m.roomadmin_approved).length
+                },
+                owner: ownerMember ? {
+                    full_name: ownerMember.user.full_name,
+                    email: ownerMember.user.email
+                } : null
+            }
+
+            return classData
+        })
+
+        return handledClasses[0]
     }
 
     async updateCommittee(updateCommitteeDto: UpdateCommitteeDTO) {

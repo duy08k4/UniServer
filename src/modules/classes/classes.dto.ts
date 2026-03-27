@@ -20,12 +20,12 @@ export class GetClassDTO {
     @IsString()
     page: string
 
-    @ApiProperty({ description: 'Amount of class in one page', default: 20 })
+    @ApiProperty({ description: 'Amount of class in one page', default: 10 })
     @IsOptional()
     @IsString()
     size?: string
 
-    @ApiProperty({ description: "Search: Class'name, Subject, owner's name, owner's email"})
+    @ApiProperty({ description: "Search: Class'name, Subject, owner's name, owner's email", required: false})
     @IsOptional()
     @IsString()
     search?: string
@@ -44,7 +44,6 @@ export class CreateClassDTO {
 
     @ApiProperty({ description: 'Description of the class', required: false })
     @IsOptional()
-    @IsString()
     description?: string
 
     @ApiProperty({ description: 'Subject of the class', example: 'Software Engineering' })
