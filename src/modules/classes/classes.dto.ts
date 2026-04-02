@@ -25,18 +25,40 @@ export class GetClassDTO {
     @IsString()
     size?: string
 
-    @ApiProperty({ description: "Search: Class'name, Subject, owner's name, owner's email", required: false})
+    @ApiProperty({ description: "Search: Class'name, Subject, owner's name, owner's email", required: false })
     @IsOptional()
     @IsString()
     search?: string
 }
 
-export class CreateClassDTO {
-    @ApiProperty({ example: 'd5105d88-d54c-463f-a24e-52c92921dde2' })
+export class GetMembersDTO {
+    @ApiProperty({ description: 'Class id' })
     @IsNotEmpty()
     @IsString()
-    userId: string
+    classId: string
 
+    @ApiProperty({ description: 'Page', default: 1 })
+    @IsNotEmpty()
+    @IsString()
+    page: string
+
+    @ApiProperty({ description: 'Amount of class in one page', default: 10 })
+    @IsOptional()
+    @IsString()
+    size?: string
+
+    @ApiProperty({ description: "Search: name, email", required: false })
+    @IsOptional()
+    @IsString()
+    search?: string
+
+    @ApiProperty({ description: "Search a user with role", enum: RoomRole, required: false })
+    @IsOptional()
+    @IsString()
+    roleSearch?: RoomRole
+}
+
+export class CreateClassDTO {
     @ApiProperty({ description: 'Label of the class', example: 'Lớp Công nghệ phần mềm' })
     @IsNotEmpty()
     @IsString()
@@ -141,4 +163,45 @@ export class RemoveMemberDTO {
     @IsOptional()
     @IsString()
     newOwnerId?: string
+}
+export class updateMemberInClassDTO {
+    @ApiProperty({ description: "ID of the class", example: "a9d8bfb4-7049-439f-9412-ba45494853d3" })
+    @IsNotEmpty()
+    @IsString()
+    classId: string
+
+    @ApiProperty({ description: "ID of the user (not id in a class)", example: "ef7c680f-a1a9-4d8d-b926-564d39b954fd" })
+    @IsNotEmpty()
+    @IsString()
+    memberId: string
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    role?: RoomRole
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsBoolean()
+    roomadmin_approved?: boolean
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsBoolean()
+    can_create_notifications?: boolean
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsBoolean()
+    can_create_forms?: boolean
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsBoolean()
+    can_create_score_forms?: boolean
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsBoolean()
+    is_banned?: boolean
 }

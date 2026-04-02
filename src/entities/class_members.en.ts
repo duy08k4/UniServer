@@ -9,31 +9,40 @@ import { Users } from "./user.en";
 @Index(['class', 'user'], { unique: true })
 export class ClassMembers {
     @PrimaryGeneratedColumn('uuid')
-    id : string
+    id: string
 
     @Column({ type: 'enum', enum: RoomRole, default: RoomRole.STUDENT })
-    role : RoomRole
+    role: RoomRole
 
     @Column({ type: 'boolean', default: false })
-    roomadmin_approved : boolean
-    
+    roomadmin_approved: boolean
+
     @Column({ type: 'boolean', default: false })
-    is_committee_member : boolean
-    
+    is_banned: boolean
+
     @Column({ type: 'boolean', default: false })
-    can_create_notifications : boolean
-    
+    is_deleted: boolean
+
     @Column({ type: 'boolean', default: false })
-    can_create_forms : boolean
-    
+    is_committee_member: boolean
+
     @Column({ type: 'boolean', default: false })
-    can_create_score_forms : boolean
-    
-    @CreateDateColumn({ type: 'timestamptz' })
-    joined_at : Date
-    
+    can_create_notifications: boolean
+
+    @Column({ type: 'boolean', default: false })
+    can_create_forms: boolean
+
+    @Column({ type: 'boolean', default: false })
+    can_create_score_forms: boolean
+
+    @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+    joined_at: Date
+
     @UpdateDateColumn({ type: 'timestamptz' })
-    updated_at : Date
+    updated_at: Date
+
+    @CreateDateColumn({ type: 'timestamptz' })
+    created_at: Date
 
     // Relations
     @ManyToOne(() => Classes, (cls) => cls.members, { onDelete: 'CASCADE' })

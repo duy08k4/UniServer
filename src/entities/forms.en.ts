@@ -4,6 +4,7 @@ import { Users } from "./user.en";
 import { Fields } from "./fields.en";
 import { Checkbox_fields } from "./checkbox_fields.en";
 import { Submissions } from "./submissions.en";
+import { Classes } from "./classes.en";
 
 @Entity('forms')
 @Index(['label', 'milestone', 'createdBy', 'is_auto_open', 'is_auto_close', 'is_deleted', 'is_stopped'])
@@ -58,6 +59,10 @@ export class Forms {
     @ManyToOne(() => Users, (user) => user.forms, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'created_by' })
     createdBy: Users;
+
+    @ManyToOne(() => Classes, (classes) => classes.forms, { onDelete: 'CASCADE' } )
+    @JoinColumn({ name: 'class' })
+    class: Classes
 
     @OneToMany(() => Fields, (field) => field.form, { cascade: true })
     fields: Fields[];

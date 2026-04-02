@@ -5,7 +5,7 @@ import { ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/s
 import { Roles } from "src/decorators/roles.decorator";
 
 // DTO
-import { ApprovedClassDTO, CreateClassDTO, GetClassDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO } from "./classes.dto";
+import { ApprovedClassDTO, CreateClassDTO, GetClassDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
 import { MainRole, Role } from "src/enums/enums";
 
 // Guard
@@ -55,7 +55,11 @@ export class ClassesController {
                         is_deleted: false,
                         created_at: '2026-03-26T01:29:35.354Z',
                         updated_at: '2026-03-26T02:14:00.348Z',
-                        roleClass: "student || null",
+                        user: {
+                            role: "student",
+                            is_banned: false,
+                            roomadmin_approved: true
+                        },
                         createdBy: {
                             id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
                             full_name: 'Nguyen Van A',
@@ -113,7 +117,11 @@ export class ClassesController {
                 is_deleted: false,
                 created_at: '2026-03-26T01:29:35.354Z',
                 updated_at: '2026-03-26T02:14:00.348Z',
-                roleClass: "student || null",
+                user: {
+                    role: "student",
+                    is_banned: false,
+                    roomadmin_approved: true
+                },
                 createdBy: {
                     id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
                     full_name: 'Nguyen Van A',
@@ -143,31 +151,67 @@ export class ClassesController {
     }
 
     // Get member
-    @Get('one/members')
-    @ApiOperation({ summary: 'Get member of one class' })
+    @Get('/members')
+    @ApiOperation({ summary: "Get member of one class. Get all members without class's ID" })
     @ApiQuery({ name: 'classId', type: String, description: 'ID of the class' })
     @ApiResponse({
         status: 200,
-        description: 'Example list of class members',
-        schema: {
-            example: [
-                {
-                    id: '961722c8-19ff-466d-8029-6cfe9d5e59b8',
-                    role: 'lecturer',
-                    roomadmin_approved: false,
-                    is_committee_member: false,
-                    can_create_notifications: false,
-                    can_create_forms: false,
-                    can_create_score_forms: false,
-                    joined_at: '2026-03-25T13:11:14.794Z',
-                    updated_at: '2026-03-25T16:33:06.729Z',
-                    user: {
-                        id: 'ef7c680f-a1a9-4d8d-b926-564d39b954fd',
-                        full_name: 'Nguyen Van B',
-                        email: '22166013@st.hcmuaf.edu.vn'
+        description: 'Trả về dữ liệu thành viên thành công (Hard-coded)',
+        content: {
+            'application/json': {
+                example: {
+                    data: {
+                        lecturer: [],
+                        student: [],
+                        roomadmin: [
+                            {
+                                id: "02c4d4a0-83f4-47ac-b39a-e1d2523fd428",
+                                role: "roomadmin",
+                                roomadmin_approved: true,
+                                is_banned: false,
+                                is_committee_member: false,
+                                can_create_notifications: true,
+                                can_create_forms: true,
+                                can_create_score_forms: true,
+                                joined_at: "2026-03-28T05:40:14.291Z",
+                                updated_at: "2026-03-28T05:40:14.291Z",
+                                created_at: "2026-03-28T05:40:14.291Z",
+                                user: {
+                                    id: "d5105d88-d54c-463f-a24e-52c92921dde2",
+                                    full_name: "Nguyen Van A",
+                                    email: "duytran.290804@gmail.com"
+                                }
+                            }
+                        ],
+                        pending: [
+                            {
+                                id: "68593bfe-5375-42cc-816e-b213eb15f1f1",
+                                role: "student",
+                                roomadmin_approved: false,
+                                is_banned: false,
+                                is_committee_member: false,
+                                can_create_notifications: false,
+                                can_create_forms: false,
+                                can_create_score_forms: false,
+                                joined_at: "2026-03-29T11:46:58.000Z",
+                                updated_at: "2026-03-29T11:46:56.000Z",
+                                created_at: "2026-03-29T11:46:52.000Z",
+                                user: {
+                                    id: "ef7c680f-a1a9-4d8d-b926-564d39b954fd",
+                                    full_name: "Nguyen Van B",
+                                    email: "22166013@st.hcmuaf.edu.vn"
+                                }
+                            }
+                        ]
+                    },
+                    pagination: {
+                        page: 1,
+                        size: 10,
+                        total_members: 2,
+                        totalPage: 1
                     }
                 }
-            ]
+            }
         }
     })
     @ApiResponse({ status: 400, description: 'Bad request' })
@@ -175,7 +219,7 @@ export class ClassesController {
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
     @ApiResponse({ status: 404, description: 'Class not found' })
     @Roles(MainRole.UNIADMIN, MainRole.USER)
-    async getMember(@Query() query: { classId: string }, @Req() req: Request) {
+    async getMember(@Query() query: GetMembersDTO, @Req() req: Request) {
         return await this.classesService.getMember(query, req);
     }
 
@@ -200,7 +244,11 @@ export class ClassesController {
                 is_banned: false,
                 created_at: '2026-03-26T02:14:00.348Z',
                 updated_at: '2026-03-26T02:14:00.348Z',
-                roleClass: "student || null",
+                user: {
+                    role: "student",
+                    is_banned: false,
+                    roomadmin_approved: true
+                },
                 createdBy: {
                     id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
                     full_name: 'Nguyen Van A',
@@ -223,8 +271,9 @@ export class ClassesController {
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
     @ApiResponse({ status: 404, description: 'User not found' })
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
     async createNewClass(@Body() createClassDto: CreateClassDTO, @Req() req: any) {
-        return this.classesService.createNewClass(createClassDto)
+        return this.classesService.createNewClass(createClassDto, req)
     }
 
     // Join to a class
@@ -248,7 +297,11 @@ export class ClassesController {
                 is_banned: false,
                 created_at: '2026-03-26T02:14:00.348Z',
                 updated_at: '2026-03-26T02:14:00.348Z',
-                roleClass: "student || null",
+                user: {
+                    role: "student",
+                    is_banned: false,
+                    roomadmin_approved: true
+                },
                 createdBy: {
                     id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
                     full_name: 'Nguyen Van A',
@@ -272,33 +325,99 @@ export class ClassesController {
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
     @ApiResponse({ status: 404, description: 'Class not found' })
     @ApiResponse({ status: 409, description: 'User already in class' })
-    async joinClass(@Body() joinClassDto: JoinClassDTO) {
-        return this.classesService.joinClass(joinClassDto)
-    }
-
-    // Add committee
-    @Put('committee/update')
-    @ApiOperation({ summary: 'Join a class using a code or class ID' })
-    @ApiBody({ type: UpdateCommitteeDTO })
-    @ApiResponse({ status: 200, description: 'Joined class successfully' })
-    @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
-    @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
-    @ApiResponse({ status: 404, description: 'Class not found' })
-    @ApiResponse({ status: 409, description: 'User is a committee' })
-    @ApiResponse({ status: 422, description: 'Role must be LECTURER' })
-    async updateCommittee(@Body() updateCommitteeDto: UpdateCommitteeDTO) {
-        return this.classesService.updateCommittee(updateCommitteeDto)
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async joinClass(@Body() joinClassDto: JoinClassDTO, @Req() req: Request) {
+        return this.classesService.joinClass(joinClassDto, req)
     }
 
     // Update some information in class
     @Put()
     @ApiOperation({ summary: 'Update class information' })
     @ApiBody({ type: UpdateClassDTO })
-    @ApiResponse({ status: 200, description: 'Class updated successfully' })
+    @ApiResponse({
+        status: 200,
+        description: 'Example paginated class list with createdBy and owner',
+        schema: {
+            example: {
+                id: '98dfcd84-cb7b-49ad-9083-98f8e7230dfd',
+                join_code: 'imyzvX',
+                label: 'Lớp Công nghệ phần mềm',
+                description: 'string',
+                subject: 'Software Engineering',
+                created_approval: false,
+                required_join_form: false,
+                required_approval: false,
+                is_banned: false,
+                is_deleted: false,
+                created_at: '2026-03-26T01:29:35.354Z',
+                updated_at: '2026-03-26T02:14:00.348Z',
+                user: {
+                    role: "student",
+                    is_banned: false,
+                    roomadmin_approved: true
+                },
+                createdBy: {
+                    id: 'd5105d88-d54c-463f-a24e-52c92921dde2',
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com',
+                    role: 'user'
+                },
+                counts: {
+                    student: 0,
+                    lecturer: 0,
+                    committee: 0,
+                    pending: 0
+                },
+                owner: {
+                    full_name: 'Nguyen Van A',
+                    email: 'duytran.290804@gmail.com'
+                }
+            }
+        }
+    })
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
-    async updateClass(@Body() query: UpdateClassDTO) {
-        return this.classesService.updateClass(query)
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async updateClass(@Body() query: UpdateClassDTO, @Req() req: Request) {
+        return this.classesService.updateClass(query, req)
+    }
+
+    // Update member
+    @Put('member/update')
+    @ApiOperation({ summary: "Get member of one class. Get all members without class's ID" })
+    @ApiResponse({
+        status: 200,
+        description: 'Successful Response',
+        content: {
+            'application/json': {
+                example: {
+                    id: "68593bfe-5375-42cc-816e-b213eb15f1f1",
+                    role: "student",
+                    roomadmin_approved: true,
+                    is_banned: false,
+                    is_committee_member: false,
+                    can_create_notifications: false,
+                    can_create_forms: false,
+                    can_create_score_forms: false,
+                    joined_at: "2026-03-29T11:46:58.000Z",
+                    updated_at: "2026-03-30T04:45:12.477Z",
+                    created_at: "2026-03-29T11:46:52.000Z",
+                    user: {
+                        id: "ef7c680f-a1a9-4d8d-b926-564d39b954fd",
+                        full_name: "Nguyen Van B",
+                        email: "22166013@st.hcmuaf.edu.vn"
+                    }
+                }
+            }
+        }
+    })
+    @ApiResponse({ status: 400, description: 'Bad request' })
+    @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
+    @ApiResponse({ status: 404, description: 'Class not found' })
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async updateMember(@Body() query: updateMemberInClassDTO, @Req() req: Request) {
+        return await this.classesService.updateMemberInClass(query, req);
     }
 
     // Remove a class
@@ -308,8 +427,8 @@ export class ClassesController {
     @ApiResponse({ status: 400, description: 'Bad request' })
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
-    async removeClass(@Query() query: RemoveClassDTO) {
-        return this.classesService.removeClass(query)
+    async removeClass(@Query() query: RemoveClassDTO, @Req() req: Request) {
+        return this.classesService.removeClass(query, req)
     }
 
     // Remove a member

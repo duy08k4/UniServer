@@ -3,6 +3,8 @@ import { Users } from "./user.en";
 import { ClassMembers } from "./class_members.en";
 import { Progresses } from "./progresses.en";
 import { Notifications } from "./notifications.en";
+import { Forms } from "./forms.en";
+import { ScoreForms } from "./score_forms.en";
 
 @Entity('classes')
 export class Classes {
@@ -55,4 +57,10 @@ export class Classes {
 
     @OneToMany(() => Notifications, (notification) => notification.class, { cascade: true })
     notifications: Notifications[];
+
+    @OneToMany(() => Forms, (form) => form.class, { cascade: true })
+    forms: Forms[]
+
+    @OneToMany(() => ScoreForms, (scoreForm) => scoreForm.class, { cascade: true })
+    score_forms: ScoreForms[]
 }
