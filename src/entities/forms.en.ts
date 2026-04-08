@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Milestones } from "./milestones.en";
 import { Users } from "./user.en";
 import { Fields } from "./fields.en";
@@ -39,16 +39,16 @@ export class Forms {
     @Column({ type: 'boolean', default: false })
     is_stopped: boolean
     
-    @Column({ type: 'timestamptz' })
+    @Column({ type: 'timestamptz', nullable: true })
     open_at : Date
     
-    @Column({ type: 'timestamptz' })
+    @Column({ type: 'timestamptz', nullable: true })
     close_at : Date
     
-    @Column({ type: 'timestamptz' })
+    @UpdateDateColumn({ type: 'timestamptz' })
     update_at : Date
     
-    @UpdateDateColumn({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at : Date
 
     // Relations

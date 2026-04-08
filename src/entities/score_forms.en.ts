@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
-import { ScoreForm_Type } from "src/enums/enums";
+import { ScoreForm_Type, SubmissionStatus } from "src/enums/enums";
 import { Users } from "./user.en";
 import { Milestones } from "./milestones.en";
 import { ScoreFormColumns } from "./score_form_columns.en";
@@ -17,6 +17,9 @@ export class ScoreForms {
 
     @Column({ type: 'enum', enum: ScoreForm_Type, default: ScoreForm_Type.OTHERS })
     score_form_type: ScoreForm_Type
+
+    @Column({ type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.PENDING })
+    status: SubmissionStatus
 
     @Column({ type: 'varchar' })
     label: string
@@ -42,10 +45,10 @@ export class ScoreForms {
     @Column({ type: 'boolean', default: false })
     is_stopped: boolean
 
-    @Column({ type: 'timestamptz' })
+    @Column({ type: 'timestamptz', nullable: true })
     open_at: Date
 
-    @Column({ type: 'timestamptz' })
+    @Column({ type: 'timestamptz', nullable: true })
     close_at: Date
 
     @CreateDateColumn({ type: 'timestamptz' })
@@ -73,6 +76,6 @@ export class ScoreForms {
     @OneToMany(() => ScoreFormRows, (row) => row.scoreForm, { cascade: true })
     rows: ScoreFormRows[];
 
-    @OneToMany(() => ScoreFormCells, (cell) => cell.score_form, {cascade: true })
+    @OneToMany(() => ScoreFormCells, (cell) => cell.score_form, { cascade: true })
     cell: ScoreFormCells[]
 }

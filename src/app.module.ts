@@ -10,6 +10,7 @@ import supabaseConfig from "./config/supabase"
 import { AuthModule } from "./modules/auth/auth.module";
 import { ClassesModule } from "./modules/classes/classes.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { ProgressModule } from "./modules/progress/progress.module";
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { AdminModule } from "./modules/admin/admin.module";
     }),
 
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule
+    AdminModule, AuthModule, ClassesModule, ProgressModule
   ],
   controllers: [],
   providers: []

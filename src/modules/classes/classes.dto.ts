@@ -97,6 +97,16 @@ export class UpdateClassDTO {
     @IsOptional()
     @IsString()
     subject?: string
+    
+    @ApiProperty({ description: 'System admin approve', required: false })
+    @IsOptional()
+    @IsBoolean()
+    created_approval?: boolean
+
+    @ApiProperty({ description: 'Class is banned by system admin', required: false })
+    @IsOptional()
+    @IsBoolean()
+    is_banned?: boolean
 
     @ApiProperty({ description: 'Whether the class requires approval for creation', required: false })
     @IsOptional()

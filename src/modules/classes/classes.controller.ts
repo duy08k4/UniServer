@@ -21,18 +21,6 @@ import { ClassesService } from "./classes.service";
 export class ClassesController {
     constructor(private readonly classesService: ClassesService) { }
 
-    // Approve class creation
-    @Get('approved')
-    @ApiOperation({ summary: 'Approve a newly created class' })
-    @ApiQuery({ name: 'classId', type: String, description: 'ID of the class to approve' })
-    @ApiResponse({ status: 200, description: 'Class approved successfully' })
-    @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
-    @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
-    @Roles(Role.UNIADMIN)
-    async approveNewClass(@Query() query: ApprovedClassDTO) {
-        return await this.classesService.approveNewClass(query.classId);
-    }
-
     // Get classes
     @Get('all')
     @ApiOperation({ summary: 'Get classes for render' })
@@ -427,6 +415,7 @@ export class ClassesController {
     @ApiResponse({ status: 400, description: 'Bad request' })
     @ApiResponse({ status: 401, description: 'Unauthorized - Session expired' })
     @ApiResponse({ status: 403, description: 'Forbidden - Access denied' })
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
     async removeClass(@Query() query: RemoveClassDTO, @Req() req: Request) {
         return this.classesService.removeClass(query, req)
     }

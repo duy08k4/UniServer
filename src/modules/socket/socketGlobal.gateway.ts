@@ -1,6 +1,6 @@
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets'
-import { log } from 'console'
 import { Server } from 'socket.io'
+import { RoomRole } from 'src/enums/enums'
 
 @WebSocketGateway({
     cors: { origin: '*' }
@@ -10,18 +10,22 @@ export class GlobalGateway {
     server: Server
 
     // Room admin approve a member
-    approveMember(data: { receiver: string, classId: string, result: boolean }) {
-        const { classId, receiver, result } = data
-
-        if (!classId || !receiver || !result) return
-
+    approveMember(data: { memberId: string, role: RoomRole, classId: string, result: boolean }) {
         this.server.emit('approve-member', data)
     }
 
     // One user join class if the class require approval
-    joinClass(data: { receiverEmail: string, classId: string, newMemberId: string, newMemberName: string, newMemberEmail: string }) {
-        const { classId, newMemberId, receiverEmail, newMemberEmail, newMemberName  } = data
-        if (!classId || !newMemberId || !receiverEmail || !newMemberEmail || !newMemberName) return
+    joinClass(data: { classId: string, newMemberId: string, newMemberName: string, newMemberEmail: string }) {
         this.server.emit('new-member', data)
+    }
+
+    // A class is created
+    createNewClass(data: { classId: string }) {
+        this.server.emit('new-class', data)
+    }
+
+    // Update class's status in two actions: approve class, ban a class
+    updateClassStatus(data: { classId: string, approvalClass?: boolean, banned?: boolean }) {
+        this.server.emit('update-class-status', data)
     }
 }

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Users } from "./user.en";
 import { Progresses } from "./progresses.en";
 import { Forms } from "./forms.en";
@@ -13,10 +13,10 @@ export class Milestones {
     @Column({ type: 'int' })
     index: number
 
-    @Column({ type: 'varchar', nullable: true, default: true })
+    @Column({ type: 'varchar', default: true })
     label: string
 
-    @Column({ type: 'varchar', nullable: true, default: true })
+    @Column({ type: 'varchar', nullable: true })
     description: string
 
     @Column({ type: 'boolean', default: false })
@@ -25,7 +25,7 @@ export class Milestones {
     @Column({ type: 'boolean', default: false })
     is_stopped: boolean
 
-    @Column({ type: 'timestamptz' })
+    @UpdateDateColumn({ type: 'timestamptz' })
     updated_at: Date
 
     @CreateDateColumn({ type: 'timestamptz' })

@@ -17,6 +17,13 @@ export enum RoomRole {
   LECTURER = "lecturer",
 }
 
+export enum SubmissionStatus {
+  PENDING = "pending",
+  RECEIVE = "receive",
+  ACCEPT = "accept",
+  REJECT = "reject"
+}
+
 export enum Field_Type {
   STRING = "string",
   NUMBER = "number",

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { CreateClassDTO, GetClassDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Users } from "src/entities/user.en";
@@ -30,28 +30,6 @@ export class ClassesService {
         private readonly scoreCellRepo: Repository<ScoreFormCells>
     ) { }
 
-    // Approve class creation
-    async approveNewClass(classId: string) {
-        try {
-            const { affected, } = await this.classRepo.createQueryBuilder()
-                .update(Classes)
-                .set({ created_approval: true })
-                .where("id = :id", { id: classId })
-                .execute()
-
-
-            if (affected) {
-                return {
-                    message: 'Approval successful!',
-                    data: {}
-                }
-            } else throw new NotFoundException("Class not found")
-
-        } catch (error) {
-            throw new BadRequestException(error.message)
-        }
-    }
-
     // Get class
     async getClass(query: GetClassDTO, req: Request | any) {
         const { userId, page, size, search } = query
@@ -63,7 +41,7 @@ export class ClassesService {
         let handledClasses
 
         if (userRole === MainRole.UNIADMIN) {
-            const [classes, _] = await this.classRepo.findAndCount({
+            const [classes, total] = await this.classRepo.findAndCount({
                 select: {
                     id: true,
                     join_code: true,
@@ -134,6 +112,16 @@ export class ClassesService {
                 return classData
             })
 
+            return {
+                data: handledClasses,
+                pagination: {
+                    page: Number.parseInt(page),
+                    size: pageSize,
+                    total_classes: total,
+                    totalPage: Math.ceil(total / pageSize)
+                }
+            }
+
         } else {
             if (!userId) throw new BadRequestException("Bad request")
 
@@ -149,7 +137,7 @@ export class ClassesService {
                 }
             })).flatMap(c => c.id)
 
-            const [classes, _] = await this.classRepo.findAndCount({
+            const [classes, total] = await this.classRepo.findAndCount({
                 join: {
                     alias: "class",
                     leftJoinAndSelect: {
@@ -233,16 +221,15 @@ export class ClassesService {
 
                 return classData
             })
-        }
 
-
-        return {
-            data: handledClasses,
-            pagination: {
-                page: Number.parseInt(page),
-                size: pageSize,
-                total_classes: handledClasses.length,
-                totalPage: Math.ceil(handledClasses.length / pageSize)
+            return {
+                data: handledClasses,
+                pagination: {
+                    page: Number.parseInt(page),
+                    size: pageSize,
+                    total_classes: total,
+                    totalPage: Math.ceil(total / pageSize)
+                }
             }
         }
     }
@@ -310,6 +297,7 @@ export class ClassesService {
         const { classId, page, size, search, roleSearch } = query
 
         if (!page || !classId) throw new BadRequestException("Data is invalid")
+
         const userEmail = req.userData.email
         const userRole = req.role
 
@@ -325,36 +313,40 @@ export class ClassesService {
         if (!classExistance) throw new NotFoundException("Class not found")
 
         const pageSize = size ? Number.parseInt(size) : 50
+        const currentPage = Number.parseInt(page)
 
-        const members = await this.classMemberRepo.find({
+        const [members, total] = await this.classMemberRepo.findAndCount({
             relations: {
                 user: true
             },
             select: {
-                ...({
-                    user: {
-                        id: true,
-                        full_name: true,
-                        email: true
-                    }
-                })
-            },
-
-            where: search || roleSearch ? {
-                class: { id: classId },
                 user: {
-                    email: Raw((alias) => `(
-                        unaccent(${alias}) ILIKE unaccent(:search) OR
-                        unaccent(full_name) ILIKE unaccent(:search)
-                    )`, { search: `%${search}%` })
+                    id: true,
+                    full_name: true,
+                    email: true
+                }
+            },
+            where: (search || roleSearch) ? [
+                {
+                    class: { id: classId },
+                    user: {
+                        email: Raw((alias) => `unaccent(${alias}) ILIKE unaccent(:search)`, { search: `%${search}%` })
+                    },
+                    role: roleSearch
                 },
-                role: roleSearch
-            } : { class: { id: classId } },
+                {
+                    class: { id: classId },
+                    user: {
+                        full_name: Raw(() => `unaccent(full_name) ILIKE unaccent(:search)`, { search: `%${search}%` })
+                    },
+                    role: roleSearch
+                }
+            ] : { class: { id: classId } },
             order: {
-                user: { full_name: "ASC" }
+                joined_at: "ASC"
             },
             take: pageSize,
-            skip: (Number.parseInt(page) - 1) * pageSize
+            skip: (currentPage - 1) * pageSize
         })
 
         const sortMembers: Record<RoomRole | 'pending', ClassMembers[]> = {
@@ -372,11 +364,9 @@ export class ClassesService {
                     case RoomRole.ROOMADMIN:
                         sortMembers.roomadmin.push(m)
                         break;
-
                     case RoomRole.LECTURER:
                         sortMembers.lecturer.push(m)
                         break;
-
                     default:
                         sortMembers.student.push(m)
                         break;
@@ -387,132 +377,128 @@ export class ClassesService {
         return {
             data: sortMembers,
             pagination: {
-                page: Number.parseInt(page),
+                page: currentPage,
                 size: pageSize,
-                total_members: members.length,
-                totalPage: Math.ceil(members.length / pageSize)
+                total_members: total,
+                totalPage: Math.ceil(total / pageSize)
             }
         }
     }
 
     // Create a new class
     async createNewClass(dto: CreateClassDTO, req: Request | any) {
-        try {
-            const { label, subject, description } = dto
+        const { label, subject, description } = dto
 
-            if (!label || !subject) throw new BadRequestException("Bad request")
+        if (!label || !subject) throw new BadRequestException("Bad request")
 
-            // Check user existance     
-            const userEmail = req.userData.email
-            const user = await this.userRepo.findOne({ where: { email: userEmail } })
-            if (!user) throw new NotFoundException("User not found")
+        // Check user existance     
+        const userEmail = req.userData.email
+        const user = await this.userRepo.findOne({ where: { email: userEmail } })
+        if (!user) throw new NotFoundException("User not found")
 
-            // Generate join code
-            let joinCode: string
+        // Generate join code
+        let joinCode: string
 
-            do {
-                joinCode = nanoid(6)
-            } while (await this.classRepo.findOne({ where: { join_code: joinCode } }))
+        do {
+            joinCode = nanoid(6)
+        } while (await this.classRepo.findOne({ where: { join_code: joinCode } }))
 
-            // Create class
-            const newClass = this.classRepo.create({
-                join_code: joinCode,
-                label, subject,
-                description: description ? description : undefined,
-                created_approval: false,
-                required_approval: true,
-                createdBy: { id: user.id, email: user.email, full_name: user.full_name, role: user.role }
-            })
+        // Create class
+        const newClass = this.classRepo.create({
+            join_code: joinCode,
+            label, subject,
+            description: description ? description : undefined,
+            created_approval: false,
+            required_approval: true,
+            createdBy: { id: user.id, email: user.email, full_name: user.full_name, role: user.role }
+        })
 
-            await this.classRepo.save(newClass)
+        await this.classRepo.save(newClass)
 
-            const newMember = this.classMemberRepo.create({
+        const newMember = this.classMemberRepo.create({
+            role: RoomRole.ROOMADMIN,
+            class: newClass,
+            roomadmin_approved: true,
+            can_create_forms: true,
+            can_create_notifications: true,
+            can_create_score_forms: true,
+            user: user
+        })
+
+        await this.classMemberRepo.save(newMember)
+
+        this.globalGateway.createNewClass({ classId: newClass.id })
+
+        const newClassResponse = {
+            ...newClass,
+            roleClass: RoomRole.ROOMADMIN,
+            user: {
                 role: RoomRole.ROOMADMIN,
-                class: newClass,
-                roomadmin_approved: true,
-                can_create_forms: true,
-                can_create_notifications: true,
-                can_create_score_forms: true,
-                user: user
-            })
-
-            await this.classMemberRepo.save(newMember)
-
-            const newClassResponse = {
-                ...newClass,
-                roleClass: RoomRole.ROOMADMIN,
-                user: {
-                    role: RoomRole.ROOMADMIN,
-                    is_banned: false,
-                    roomadmin_approved: true
-                },
-                counts: {
-                    student: 0,
-                    lecturer: 0,
-                    committee: 0,
-                    pending: 0
-                },
-                owner: {
-                    full_name: user.full_name,
-                    email: user.email
-                }
+                is_banned: false,
+                roomadmin_approved: true
+            },
+            counts: {
+                student: 0,
+                lecturer: 0,
+                committee: 0,
+                pending: 0
+            },
+            owner: {
+                full_name: user.full_name,
+                email: user.email
             }
-
-            return newClassResponse
-
-        } catch (error) {
-            throw new BadRequestException(error.message)
         }
+
+        return newClassResponse
     }
 
     // Remove a class
     async removeClass(query: RemoveClassDTO, req: Request | any) {
-        try {
-            const { classId, userId } = query
+        const { classId, userId } = query
 
-            if (!classId || !userId) throw new BadRequestException("Bad request")
+        if (!classId || !userId) throw new BadRequestException("Bad request")
 
 
-            const clientRole: Role = req.role
-            if (clientRole !== Role.UNIADMIN) {
-                const userExistance = await this.classMemberRepo.findOne({
-                    where: {
-                        user: { id: userId },
-                        class: { id: classId }
-                    }
-                })
-                console.log(userExistance)
-                if (!userExistance) throw new NotFoundException("User not found")
-                const memberRole = userExistance.role
-
-                if (memberRole !== RoomRole.ROOMADMIN) throw new ForbiddenException("Forbidden - Access denied")
-            }
-
-            const [submissionCount, cellCount] = await Promise.all([
-                this.submissionRepo.count({ where: { form: { class: { id: classId } } } }),
-                this.scoreCellRepo.count({ where: { score_form: { class: { id: classId } } } })
-            ]);
-
-            const hasSignificantData = submissionCount > 0 || cellCount > 0;
-
-            if (!hasSignificantData) {
-                // Hard deletion if there is not data
-                await this.classRepo.delete(classId);
-            } else {
-                // Soft deletion if there is data
-                await this.classRepo.update(classId, { is_deleted: true });
-            }
-
-            this.classGateway.dissolveClass({
-                classId,
-                removeByRole: clientRole === Role.UNIADMIN ? Role.UNIADMIN : RoomRole.ROOMADMIN
+        const clientRole: Role = req.role
+        console.log(clientRole)
+        if (clientRole !== Role.UNIADMIN) {
+            const userExistance = await this.classMemberRepo.findOne({
+                where: {
+                    user: { id: userId },
+                    class: { id: classId }
+                }
             })
 
-            return true
+            if (!userExistance) throw new NotFoundException("User not found")
+            const memberRole = userExistance.role
 
-        } catch (error) {
-            throw new BadRequestException(error.message)
+            if (memberRole !== RoomRole.ROOMADMIN) throw new ForbiddenException("Forbidden - Access denied")
+        } else {
+            await this.classRepo.delete(classId);
+            this.classGateway.removeClass({ classId })
         }
+
+        const [submissionCount, cellCount] = await Promise.all([
+            this.submissionRepo.count({ where: { form: { class: { id: classId } } } }),
+            this.scoreCellRepo.count({ where: { score_form: { class: { id: classId } } } })
+        ]);
+
+        const hasSignificantData = submissionCount > 0 || cellCount > 0;
+
+        if (!hasSignificantData) {
+            // Hard deletion if there is not data
+            await this.classRepo.delete(classId);
+        } else {
+            // Soft deletion if there is data
+            await this.classRepo.update(classId, { is_deleted: true });
+        }
+
+        this.classGateway.dissolveClass({
+            classId,
+            removeByRole: clientRole === Role.UNIADMIN ? Role.UNIADMIN : RoomRole.ROOMADMIN
+        })
+
+        return true
     }
 
     // Join to a class
@@ -604,7 +590,6 @@ export class ClassesService {
             newMemberEmail: userExistance.email,
             newMemberId: userExistance.id,
             newMemberName: userExistance.full_name,
-            receiverEmail: handledClasses[0].owner.email as string
         })
 
         return handledClasses[0]
@@ -612,41 +597,51 @@ export class ClassesService {
 
     // Update some information in class
     async updateClass(query: UpdateClassDTO, req: Request | any) {
-        try {
-            const { classId, userId, label, description, subject, required_approval, required_join_form } = query
+        const { classId, userId, label, created_approval, is_banned, description, subject, required_approval, required_join_form } = query
 
-            if (!classId || !userId) throw new BadRequestException("Bad request")
-            if (!label && !description && !subject && !required_approval && !required_join_form) throw new BadRequestException("Bad request")
+        if (!classId || !userId) throw new BadRequestException("Bad request")
 
-            const classExistance = await this.classRepo.findOne({ where: { id: classId } })
+        const classExistance = await this.classRepo.findOne({ where: { id: classId } })
 
-            if (!classExistance) throw new NotFoundException("Class not found")
+        if (!classExistance) throw new NotFoundException("Class not found")
 
+        const clientRole = req.role
+
+        if (clientRole !== Role.UNIADMIN) {
             const member = await this.classMemberRepo.findOne({ where: { user: { id: userId } } })
 
             if (!member) throw new NotFoundException("User not found")
             if (member.role !== RoomRole.ROOMADMIN) throw new ForbiddenException("Forbidden - Access denied")
+        }
 
-            const updateData: Record<string, any> = {}
+        const updateData: Record<string, any> = {}
 
-            if (label) updateData.label = label
-            if (description) updateData.description = description
-            if (subject) updateData.subject = subject
-            if (required_approval) updateData.required_approval = required_approval
-            if (required_join_form) updateData.required_join_form = required_join_form
+        if (label) updateData.label = label
+        if (description) updateData.description = description
+        if (subject) updateData.subject = subject
+        if (typeof required_approval === "boolean") updateData.required_approval = required_approval
+        if (typeof required_join_form === "boolean") updateData.required_join_form = required_join_form
+        if (typeof created_approval === "boolean") updateData.created_approval = created_approval
+        if (typeof is_banned === "boolean") updateData.is_banned = is_banned
 
+        if (typeof created_approval === "boolean" || typeof is_banned === "boolean") {
+            this.globalGateway.updateClassStatus({
+                classId,
+                approvalClass: created_approval,
+                banned: is_banned
+            })
+        }
+
+        if (Object.keys(updateData).length > 0) {
             await this.classRepo.createQueryBuilder()
                 .update(Classes)
                 .set({ ...updateData })
                 .where("id = :id", { id: classId })
                 .execute()
-
-
-
-            return await this.getOneClass({ classId }, req)
-        } catch (error) {
-            throw new BadRequestException(error.message)
         }
+
+        return await this.getOneClass({ classId }, req)
+
     }
 
     // Remove member
@@ -744,20 +739,30 @@ export class ClassesService {
         const memberExistance = await this.classMemberRepo.findOne({ where: { user: { id: memberId }, class: { id: classId } } })
         if (!memberExistance) throw new NotFoundException("User not found in class")
 
-        const dataUpdate: any = {}
+        let dataUpdate: Partial<ClassMembers> = {}
 
         if (role !== undefined && role !== null) dataUpdate.role = role
-        if (can_create_forms !== undefined && can_create_forms !== null) dataUpdate.can_create_forms = can_create_forms
-        if (can_create_notifications !== undefined && can_create_notifications !== null) dataUpdate.can_create_notifications = can_create_notifications
-        if (can_create_score_forms !== undefined && can_create_score_forms !== null) dataUpdate.can_create_score_forms = can_create_score_forms
-        if (roomadmin_approved !== undefined && roomadmin_approved !== null) {
 
-            if (memberExistance.roomadmin_approved === !roomadmin_approved) {
-                dataUpdate.roomadmin_approved = roomadmin_approved
-                dataUpdate.joined_at = new Date()
+        if (role !== RoomRole.ROOMADMIN) {
+            if (can_create_forms !== undefined && can_create_forms !== null) dataUpdate.can_create_forms = can_create_forms
+            if (can_create_notifications !== undefined && can_create_notifications !== null) dataUpdate.can_create_notifications = can_create_notifications
+            if (can_create_score_forms !== undefined && can_create_score_forms !== null) dataUpdate.can_create_score_forms = can_create_score_forms
+            if (roomadmin_approved !== undefined && roomadmin_approved !== null) {
+
+                if (memberExistance.roomadmin_approved === !roomadmin_approved) {
+                    dataUpdate.roomadmin_approved = roomadmin_approved
+                    dataUpdate.joined_at = new Date()
+                }
+            }
+            if (is_banned !== undefined && is_banned !== null) dataUpdate.is_banned = is_banned
+        } else {
+            dataUpdate = {
+                ...dataUpdate,
+                can_create_forms: true,
+                can_create_notifications: true,
+                can_create_score_forms: true
             }
         }
-        if (is_banned !== undefined && is_banned !== null) dataUpdate.is_banned = is_banned
 
         if (Object.values(dataUpdate).length === 0) throw new BadRequestException("No data for update")
         await this.dataSource.transaction(async (manager) => {
@@ -769,7 +774,10 @@ export class ClassesService {
                         role: RoomRole.ROOMADMIN
                     },
                     {
-                        role: RoomRole.STUDENT
+                        role: RoomRole.STUDENT,
+                        can_create_forms: false,
+                        can_create_notifications: false,
+                        can_create_score_forms: false
                     }
                 )
             }
@@ -803,6 +811,17 @@ export class ClassesService {
             }
         })
 
+        if (role && getUser) {
+            this.classGateway.updateMemberData({
+                memberId,
+                classId,
+                role,
+                can_create_forms: getUser.can_create_forms,
+                can_create_notifications: getUser.can_create_notifications,
+                can_create_score_forms: getUser.can_create_score_forms
+            })
+        }
+
         if (is_banned !== undefined && is_banned !== null) {
             if (is_banned !== memberExistance.is_banned) {
                 this.classGateway.suspendMember({
@@ -812,13 +831,14 @@ export class ClassesService {
                 })
             }
         }
-
-        if (roomadmin_approved !== undefined && roomadmin_approved !== null) {
+        console.log(role)
+        if (roomadmin_approved !== undefined && roomadmin_approved !== null && getUser && getUser.role) {
             if (memberExistance.roomadmin_approved === !roomadmin_approved) {
                 this.globalGateway.approveMember({
-                    receiver: memberId,
                     classId: classExistance.id,
-                    result: true
+                    result: true,
+                    memberId,
+                    role: getUser.role
                 })
             }
         }

@@ -3,12 +3,16 @@ import { Forms } from "./forms.en";
 import { Users } from "./user.en";
 import { SubmissionAnswers } from "./submission_answers.en";
 import { SubmissionCheckboxes } from "./submission_checkboxes.en";
+import { SubmissionStatus } from "src/enums/enums";
 
 @Entity('submissions')
 @Index(['user', 'form'])
 export class Submissions {
     @PrimaryGeneratedColumn('uuid')
     id: string
+
+    @Column({type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.PENDING })
+    status: SubmissionStatus
 
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date
