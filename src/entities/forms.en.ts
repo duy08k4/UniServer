@@ -5,6 +5,7 @@ import { Fields } from "./fields.en";
 import { Checkbox_fields } from "./checkbox_fields.en";
 import { Submissions } from "./submissions.en";
 import { Classes } from "./classes.en";
+import { Notifications } from "./notifications.en";
 
 @Entity('forms')
 @Index(['label', 'milestone', 'createdBy', 'is_auto_open', 'is_auto_close', 'is_deleted', 'is_stopped'])
@@ -19,7 +20,7 @@ export class Forms {
     label : string
     
     @Column({ type: 'varchar', nullable: true, default: null })
-    description : string
+    description : string | null
     
     @Column({ type: 'int' })
     field_count : number
@@ -29,9 +30,6 @@ export class Forms {
     
     @Column({ type: 'boolean', default: false })
     is_auto_close : boolean
-    
-    @Column({ type: 'boolean', default: true })
-    email_notification_enabled : boolean
 
     @Column({ type: 'boolean', default: false })
     is_deleted: boolean
@@ -39,22 +37,26 @@ export class Forms {
     @Column({ type: 'boolean', default: false })
     is_stopped: boolean
     
-    @Column({ type: 'timestamptz', nullable: true })
-    open_at : Date
+    @Column({ type: 'timestamptz', nullable: true, default: null })
+    open_at : Date | null
     
-    @Column({ type: 'timestamptz', nullable: true })
-    close_at : Date
+    @Column({ type: 'timestamptz', nullable: true, default: null })
+    close_at : Date | null
     
-    @UpdateDateColumn({ type: 'timestamptz' })
+    @UpdateDateColumn({ type: 'timestamptz', nullable: true })
     update_at : Date
     
-    @CreateDateColumn({ type: 'timestamptz' })
+    @CreateDateColumn({ type: 'timestamptz', nullable: true })
     created_at : Date
 
     // Relations
-    @ManyToOne(() => Milestones, (milestone) => milestone.forms, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Milestones, (milestone) => milestone.forms, { onDelete: 'CASCADE', nullable: true })
     @JoinColumn({ name: 'milestone' })
-    milestone: Milestones;
+    milestone: Milestones | null
+
+    @ManyToOne(() => Notifications, (noti) => noti.forms, { onDelete: 'CASCADE', nullable: true })
+    @JoinColumn({ name: 'notification' })
+    notification: Notifications | null
 
     @ManyToOne(() => Users, (user) => user.forms, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'created_by' })

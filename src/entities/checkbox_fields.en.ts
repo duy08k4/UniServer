@@ -1,9 +1,10 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { Field_Type } from "src/enums/enums";
 import { Forms } from "./forms.en";
 import { SubmissionCheckboxes } from "./submission_checkboxes.en";
+import { CheckboxFieldChoices } from "./checkbox_field_choices.en";
 
 @Entity('checkbox_fields')
 @Index(['form'])
@@ -18,7 +19,7 @@ export class Checkbox_fields {
     label : string 
     
     @Column({ type: 'varchar', nullable: true, default: null })
-    description : string
+    description : string | null
     
     @Column({ type: 'enum', enum: Field_Type, default: Field_Type.CHECKBOX })
     input_type:  Field_Type.CHECKBOX
@@ -32,17 +33,23 @@ export class Checkbox_fields {
     @Column({ type: 'boolean', default: false })
     is_multiple : boolean
     
-    @CreateDateColumn({ type: 'timestamptz' })
-    created_at : Date
-
+    @Column({ type: 'boolean', default: false })
+    is_deleted : boolean
+    
     @UpdateDateColumn({ type: 'timestamptz' })
     update_at : Date
+
+    @CreateDateColumn({ type: 'timestamptz' })
+    created_at : Date
 
     // Relations
     @ManyToOne(() => Forms, (form) => form.checkboxFields, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'form' })
     form: Forms;
 
-    @OneToOne(() => SubmissionCheckboxes, (sc) => sc.checkboxField)
-    submissionCheckbox: SubmissionCheckboxes;
+    @OneToMany(() => SubmissionCheckboxes, (sc) => sc.checkboxField, { cascade: true })
+    submissionCheckboxes: SubmissionCheckboxes[];
+
+    @OneToMany(() => CheckboxFieldChoices, (cfc) => cfc.checkbox_field, { cascade: true })
+    checkbox_field_choices: CheckboxFieldChoices[]
 }

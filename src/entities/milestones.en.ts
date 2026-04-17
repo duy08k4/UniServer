@@ -3,6 +3,7 @@ import { Users } from "./user.en";
 import { Progresses } from "./progresses.en";
 import { Forms } from "./forms.en";
 import { ScoreForms } from "./score_forms.en";
+import { Notifications } from "./notifications.en";
 
 @Entity('milestones')
 @Index(['progress', 'label', 'createdBy', 'is_deleted', 'is_stopped'])
@@ -45,4 +46,7 @@ export class Milestones {
 
     @OneToMany(() => ScoreForms, (sf) => sf.milestone, { cascade: true })
     scoreForms: ScoreForms[];
+
+    @OneToMany(() => Notifications, (n) => n.milestone, { cascade: true })
+    notifications: Notifications[]
 }

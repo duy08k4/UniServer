@@ -6,11 +6,12 @@ import { AuthGuard } from "../auth/auth.guard";
 import { MilestonePaginationDTO, NewMilestoneDTO, NewProgressDTO, ProgressPaginationDTO, UpdateProgressDTO } from "./progress.dto";
 import { Roles } from "src/decorators/roles.decorator";
 import { MainRole } from "src/enums/enums";
-import { CLASS_MEMBERSHIP_REQUIRED_403 } from "./progress.err";
+import { CLASS_MEMBERSHIP_REQUIRED_403 } from "src/config/errorCustom";
 
 @ApiTags("Progress")
 @Controller('progress')
-@ApiResponse({ status: 403,
+@ApiResponse({
+    status: 403,
     description: 'Truy cập bị từ chối (Forbidden)',
     content: {
         'application/json': {
@@ -50,7 +51,7 @@ export class ProgressController {
                             label: { type: 'string', example: 'Quy trình của Lớp học gì đó' },
                             description: { type: 'string', example: 'Mô với chả tả' },
                             is_submitted: { type: 'boolean', example: false },
-                            is_deleted: { type: 'boolean', example: false },
+                            is_Deleted: { type: 'boolean', example: false },
                             is_banned: { type: 'boolean', example: false },
                             created_approval: { type: 'boolean', example: false },
                             created_at: { type: 'string', format: 'date-time', example: '2026-04-05T14:33:19.000Z' },
@@ -88,15 +89,15 @@ export class ProgressController {
             }
         }
     })
-    @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ (Data is invalid)' })
-    @ApiResponse({ status: 403, description: 'Truy cập bị từ chối (Access denied)' })
+    @ApiResponse({ status: 400, description: 'Data is invalid' })
+    @ApiResponse({ status: 403, description: 'Access denied' })
     async progressPagination(@Query() query: ProgressPaginationDTO, @Req() req: Request) {
         return this.progressService.progressPagination(query, req)
     }
 
     // Get one progress
     @Get()
-    @ApiOperation({ summary: "Get one class" })
+    @ApiOperation({ summary: "Get one progress" })
     @ApiQuery({ name: 'classId', type: String, required: true })
     @Roles(MainRole.UNIADMIN, MainRole.USER)
     @ApiResponse({
@@ -415,7 +416,7 @@ export class ProgressController {
     }
 
     // Create a new milestone
-    @Post('milestone/new')
+    @Post('milestone')
     @Roles(MainRole.UNIADMIN, MainRole.USER)
     @ApiBody({
         type: NewMilestoneDTO,
@@ -439,45 +440,14 @@ export class ProgressController {
             example: {
                 updated: [
                     {
-                        id: "fd13d3f5-af07-44a5-aeb7-310530b180a7",
-                        label: "Cột mốc 1 đổi thành 2",
-                        index: 2,
-                        description: "Giai đoạn 1",
-                        createdBy: "539573b3-e15c-4722-83a9-76ae0da2d6ac",
-                        progress: {
-                            id: "198a59ec-44e9-46f3-82ac-7aa4d226eb38",
-                            label: "Xóa mềm",
-                            description: "",
-                            is_deleted: false,
-                            is_submitted: false,
-                            is_banned: false,
-                            created_approval: false,
-                            created_at: "2026-04-06T14:46:58.448Z",
-                            updated_at: "2026-04-06T15:23:11.506Z",
-                            createdBy: {
-                                id: "ef7c680f-a1a9-4d8d-b926-564d39b954fd",
-                                full_name: "Nguyen Van B",
-                                email: "22166013@st.hcmuaf.edu.vn"
-                            },
-                            class: {
-                                id: "b9cd4053-8fc5-4c87-baf2-aedc8fa0f527",
-                                join_code: "kxrxCy",
-                                label: "Lớp học thử gì gì đó á",
-                                subject: "Môn ABC_XYZ"
-                            },
-                            milestones: [
-                                {
-                                    id: "ae41463c-47f1-4d67-b180-a328f58274f2",
-                                    index: 1,
-                                    label: "Xóa mềm",
-                                    description: "true",
-                                    is_deleted: false,
-                                    is_stopped: false,
-                                    updated_at: "2026-04-06T14:47:47.821Z",
-                                    created_at: "2026-04-06T14:47:47.821Z"
-                                }
-                            ]
-                        }
+                        id: "463e638b-c79f-47eb-ac89-8fc1bb8f3a59",
+                        index: 1,
+                        label: "Bắt đầu",
+                        description: "Giai đoạn khởi tạo dự án. Đã chỉnh nữa nhoa",
+                        is_deleted: false,
+                        is_stopped: true,
+                        updated_at: "2026-04-09T08:04:15.194Z",
+                        created_at: "2026-04-09T07:57:06.196Z"
                     }
                 ],
                 added: []
@@ -492,21 +462,21 @@ export class ProgressController {
     }
 
     // Update milestone
-    @Put('milestone/update')
-    @Roles(MainRole.UNIADMIN, MainRole.USER)
-    @ApiBody({
-        type: NewMilestoneDTO,
-        description: "List of milestones"
-    })
-    async updateMilestone(@Body() milestones: NewMilestoneDTO, @Req() req: Request) {
-        return this.progressService.updateMilestones(milestones, req)
-    }
+    // @Put('milestone/update')
+    // @Roles(MainRole.UNIADMIN, MainRole.USER)
+    // @ApiBody({
+    //     type: NewMilestoneDTO,
+    //     description: "List of milestones"
+    // })
+    // async updateMilestone(@Body() milestones: NewMilestoneDTO, @Req() req: Request) {
+    //     return this.progressService.updateMilestones(milestones, req)
+    // }
 
     // Remove milestone (single or multi)
     @Delete('milestone/remove')
     @Roles(MainRole.UNIADMIN, MainRole.USER)
     @ApiQuery({
-        name: 'ids',
+        name: 'ids', 
         type: [String],
         required: true,
         explode: true

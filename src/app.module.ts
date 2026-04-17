@@ -11,6 +11,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { ClassesModule } from "./modules/classes/classes.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { ProgressModule } from "./modules/progress/progress.module";
+import { FormsModule } from "./modules/forms/forms.module";
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { ProgressModule } from "./modules/progress/progress.module";
     }),
 
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule, ProgressModule
+    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule
   ],
   controllers: [],
   providers: []

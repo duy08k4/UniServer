@@ -1,21 +1,25 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { Transform, Type } from "class-transformer"
-import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator"
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from "class-validator"
 
 export class NewProgressDTO {
     @ApiProperty({ description: 'ID of the class', required: true })
     @IsNotEmpty()
     @IsString()
     classId: string
-
+    
     @ApiProperty({ description: 'Label of the class', required: true, example: 'Tên quy trình' })
     @IsNotEmpty()
     @IsString()
+    @MinLength(8)
+    @MaxLength(100)
     label: string
 
     @ApiProperty({ description: 'Description of the class', required: true, example: 'Mô tả quy trình' })
     @IsNotEmpty()
     @IsString()
+    @MinLength(8)
+    @MaxLength(300)
     description: string
 }
 
@@ -130,24 +134,28 @@ export class UpdateProgressDTO {
 
 
 export class MilestoneDTO {
-    @ApiProperty({ example: '1', description: 'Thứ tự của cột mốc' })
+    @ApiProperty({ example: '1' })
     @IsOptional()
     @IsString()
     id?: string; // If milestone has ID, using update
 
-    @ApiProperty({ example: '1', description: 'Thứ tự của cột mốc' })
+    @ApiProperty({ example: '1' })
     @IsString()
     @IsNotEmpty()
     index: string;
 
-    @ApiProperty({ example: 'Bắt đầu', description: 'Nhãn hiển thị' })
+    @ApiProperty({ example: 'Bắt đầu' })
     @IsString()
     @IsNotEmpty()
     label: string;
 
-    @ApiProperty({ example: 'Giai đoạn khởi tạo dự án', description: 'Mô tả chi tiết' })
+    @ApiProperty({ example: 'Giai đoạn khởi tạo dự án' })
     @IsString()
     description: string;
+
+    @ApiProperty({ example: false })
+    @IsBoolean()
+    is_stopped: boolean
 }
 
 export class NewMilestoneDTO {

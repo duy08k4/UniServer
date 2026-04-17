@@ -1,4 +1,4 @@
-import { Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Checkbox_fields } from "./checkbox_fields.en";
 import { Submissions } from "./submissions.en";
 import { CheckboxFieldChoices } from "./checkbox_field_choices.en";
@@ -10,14 +10,14 @@ export class SubmissionCheckboxes {
     id : string
 
     // Relations
-    @OneToOne(() => Checkbox_fields, (cf) => cf.submissionCheckbox, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'checkbox_field_id' })
+    @ManyToOne(() => Checkbox_fields, (cf) => cf.submissionCheckboxes, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'checkbox_field' })
     checkboxField: Checkbox_fields;
+
+    @ManyToOne(() => CheckboxFieldChoices, (cfc) => cfc.submission_checkboxes, { onDelete: "CASCADE" })
+    fieldChoices: CheckboxFieldChoices[]
 
     @ManyToOne(() => Submissions, (sub) => sub.checkboxes, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'submission' })
     submission: Submissions;
-
-    @OneToOne(() => CheckboxFieldChoices, (choice) => choice.submissionCheckbox)
-    choice: CheckboxFieldChoices;
 }

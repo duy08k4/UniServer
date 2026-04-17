@@ -12,7 +12,7 @@ export class SubmissionAnswers {
     body : string
 
     // Relations
-    @OneToOne(() => Fields, (field) => field.answer, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Fields, (field) => field.answer, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'field' })
     field: Fields;
 

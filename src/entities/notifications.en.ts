@@ -1,6 +1,8 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Classes } from "./classes.en";
 import { Users } from "./user.en";
+import { Milestones } from "./milestones.en";
+import { Forms } from "./forms.en";
 
 @Entity('notifications')
 @Index(['class', 'createdBy'])
@@ -31,4 +33,11 @@ export class Notifications {
     @ManyToOne(() => Users, (user) => user.notifications, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'created_by' })
     createdBy: Users;
+
+    @ManyToOne(() => Milestones, (milestone) => milestone.notifications, { onDelete: 'CASCADE', nullable: true })
+    @JoinColumn({ name: 'milestone' })
+    milestone: Milestones | null
+
+    @OneToMany(() => Forms, (form) => form.notification, { cascade: true })
+    forms: Forms[]
 }

@@ -1,12 +1,10 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
 import { AuthService } from "./auth.service";
 
 @Injectable()
 export class AuthGuard implements CanActivate {
 
     constructor(
-        private reflector: Reflector,
         private authService: AuthService
     ) { }
 

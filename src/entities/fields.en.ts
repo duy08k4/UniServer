@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 // Enum
 import { Field_Label, Field_Type, Unit } from "src/enums/enums";
@@ -14,14 +14,14 @@ export class Fields {
     @Column({ type: 'int' })
     index : number
     
-    @Column({ type: 'enum', enum: Field_Label })
+    @Column({ type: 'enum', enum: Field_Label, default: Field_Label.NULL })
     label : Field_Label
 
     @Column({ type: 'varchar' })
     title : string
     
     @Column({ type: 'varchar', nullable: true, default: null })
-    description : string
+    description : string | null
     
     @Column({ type: 'enum', enum: Field_Type, default: Field_Type.STRING })
     input_type : Field_Type
@@ -38,10 +38,13 @@ export class Fields {
     @Column({ type: 'int', default: 1 })
     min_attempts : number
     
-    @Column({ type: 'timestamptz' })
-    update_at : Date
+    @Column({ type: 'boolean', default: false })
+    is_deleted : boolean
     
     @UpdateDateColumn({ type: 'timestamptz' })
+    update_at : Date
+    
+    @CreateDateColumn({ type: 'timestamptz' })
     created_at : Date
 
     // Relations
@@ -49,6 +52,6 @@ export class Fields {
     @JoinColumn({ name: 'form' })
     form: Forms;
 
-    @OneToOne(() => SubmissionAnswers, (answer) => answer.field)
-    answer: SubmissionAnswers;
+    @OneToMany(() => SubmissionAnswers, (answer) => answer.field)
+    answer: SubmissionAnswers[];
 }

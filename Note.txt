@@ -1,0 +1,87 @@
+### Kế hoạch chi tiết cho hàm updateNewForm (FormsService) ###
+Ngày tạo: 14/04/2026
+
+1. Giai đoạn 0: Kiểm tra Quyền hạn (Strict Authorization)
+   - Nếu là UniAdmin: Cho phép tiếp tục.
+   - Nếu không phải UniAdmin:
+     + Truy vấn bảng ClassMembers với userId = req.user.id và classId = body.classId.
+     + Chỉ cho phép nếu role của thành viên trong lớp là ROOMADMIN (Giảng viên/Sinh viên không có quyền).
+     + Ném ForbiddenException nếu không đủ quyền.
+
+2. Giai đoạn 1: Kiểm tra Dữ liệu (Validation & UUID Check)
+   - Kiểm tra định dạng UUID cho tất cả các ID truyền vào (classId, milestoneId, notificationId, formId, fieldIds, checkboxFieldIds, choiceIds). Ném BadRequestException nếu sai định dạng.
+   - Xác thực logic Milestone/Notification: Phải thuộc về classId cung cấp.
+   - Kiểm tra Index của các Field:
+     + Gom tất cả index từ fields và checkboxFields vào một danh sách.
+     + Quy tắc: Phải bắt đầu từ 1, tăng dần liên tiếp, không trùng lặp (1, 2, 3...).
+     + Tổng số lượng field thực tế phải khớp với field_count.
+   - Kiểm tra logic thời gian: open_at < close_at (nếu cả hai được cung cấp).
+
+3. Giai đoạn 2: Khởi tạo Transaction
+   - Sử dụng QueryRunner từ TypeORM để bắt đầu transaction, đảm bảo tính toàn vẹn dữ liệu cho các bảng: forms, fields, checkbox_fields, và checkbox_field_choices.
+
+4. Giai đoạn 3: Xử lý thực thể Form (Upsert Logic)
+   - Cập nhật (nếu có formId): Tìm form trong DB (ném lỗi 404 nếu không thấy), cập nhật thông tin chung (label, description, auto open/close...) và liên kết milestone/notification.
+   - Tạo mới (nếu không có formId): Khởi tạo bản ghi Forms mới, gán class và createdBy (lấy từ req.user.id trong RoleGuard).
+
+5. Giai đoạn 4: Đồng bộ hóa Fields (Text/Number Fields)
+   - Xóa: Những field hiện có trong DB của Form này nhưng không nằm trong danh sách body.fields mới.
+   - Cập nhật: Những field có ID trùng khớp sẽ cập nhật nội dung (title, type, index, is_required...).
+   - Thêm mới: Những field không có ID trong danh sách gửi lên.
+
+6. Giai đoạn 5: Đồng bộ hóa Checkbox Fields và Choices (Đa tầng)
+   - Checkbox Fields: Thực hiện logic Xóa/Cập nhật/Thêm tương tự như Field thông thường ở Giai đoạn 4.
+   - Choices (trong mỗi Checkbox Field):
+     + Kiểm tra Index của Choice: Phải bắt đầu từ 1, tăng dần liên tiếp và không trùng lặp trong phạm vi từng Checkbox Field.
+     + Đồng bộ hóa Choices (Xóa choice cũ, Cập nhật choice hiện có, Thêm mới choice) trong bảng checkbox_field_choices.
+
+7. Giai đoạn 6: Kết thúc và Phản hồi
+   - Thực thi lưu dữ liệu qua Transaction.
+   - Commit nếu mọi thứ thành công.
+   - Rollback toàn bộ nếu có bất kỳ lỗi nào phát sinh (lỗi logic hoặc lỗi DB).
+   - Trả về dữ liệu Form hoàn chỉnh sau khi xử lý.
+
+
+
+
+
+{
+  "classId": "0c71dd63-6fa0-47c3-89a2-9257aba36112",
+  "label": "string",
+  "description": "string",
+  "field_count": "2",
+  "is_auto_open": false,
+  "is_auto_close": false,
+  "open_at": null,
+  "close_at": null,
+  "fields": [
+    {
+      "index": "1",
+      "label": "null",
+      "title": "string",
+      "description": "string",
+      "input_type": "string",
+      "is_required": true,
+      "unit": "character",
+      "max_attempts": "200",
+      "min_attempts": "200"
+    }
+  ],
+  "checkboxFields": [
+    {
+      "index": "2",
+      "label": "string",
+      "description": "string",
+      "input_type": "checkbox",
+      "choice_count": "1",
+      "is_required": true,
+      "is_multiple": false,
+      "listChoices": [
+        {
+          "index": "1",
+          "body": "string"
+        }
+      ]
+    }
+  ]
+}

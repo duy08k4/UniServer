@@ -6,8 +6,8 @@ import { Brackets, DataSource, In, IsNull, Not, Raw, Repository } from "typeorm"
 import { ClassMembers } from "src/entities/class_members.en";
 import { Role, RoomRole, SubmissionStatus } from "src/enums/enums";
 import { Milestones } from "src/entities/milestones.en";
-import { filter } from "rxjs";
-import { CLASS_MEMBERSHIP_REQUIRED_403 } from "./progress.err";
+import { CLASS_MEMBERSHIP_REQUIRED_403 } from "src/config/errorCustom";
+import { isUUID } from "class-validator";
 
 @Injectable()
 export class ProgressService {
@@ -124,6 +124,11 @@ export class ProgressService {
             relations: { class: true, createdBy: true, milestones: true },
             where: {
                 class: { id: classId }
+            },
+            order: {
+                milestones: {
+                    index: "ASC"
+                }
             }
         })
 
@@ -242,7 +247,7 @@ export class ProgressService {
 
         if (label) dataUpdate.label = label
         if (description) dataUpdate.description = description
-        if (typeof is_submitted !== "boolean") dataUpdate.is_submitted = is_submitted
+        if (typeof is_submitted === "boolean") dataUpdate.is_submitted = is_submitted
 
         if (Object.values(dataUpdate).length === 0) throw new BadRequestException("No data to update")
 
@@ -308,7 +313,7 @@ export class ProgressService {
                         .innerJoin("f.submissions", "s")
                         // Sử dụng IN với alias của query cha
                         .where("m.progress IN (p.id)")
-                        .andWhere("s.status = :subStatus")
+                        .andWhere("s.status::text = :subStatus")
                         .getQuery();
                     return `EXISTS (${subQuery})`;
                 })
@@ -320,7 +325,7 @@ export class ProgressService {
                             .from("milestones", "m2")
                             .innerJoin("m2.scoreForms", "sf")
                             .where("m2.progress IN (p.id)")
-                            .andWhere("sf.status = :sfStatus")
+                            .andWhere("sf.status::text = :sfStatus")
                             .getQuery();
                         return `EXISTS (${subQuery})`;
                     });
@@ -510,11 +515,14 @@ export class ProgressService {
             if (!m.label.trim()) throw new BadRequestException("Invalid data of a milestone")
 
             if (m.id) {
+                if (!isUUID(m.id)) throw new BadRequestException("A milestone ID is invalid")
+
                 updateMilestone.push({
                     id: m.id,
                     label: m.label,
                     index: Number(m.index),
                     description: m.description ? m.description : undefined,
+                    is_stopped: typeof m.is_stopped === "boolean" ? m.is_stopped : false,
                     createdBy: client.id,
                     progress: getProgress
                 })
@@ -523,6 +531,7 @@ export class ProgressService {
                     label: m.label,
                     index: Number(m.index),
                     description: m.description ? m.description : undefined,
+                    is_stopped: typeof m.is_stopped === "boolean" ? m.is_stopped : false,
                     createdBy: client.id,
                     progress: getProgress
                 })
@@ -556,14 +565,29 @@ export class ProgressService {
 
         // Save
         await this.dataSource.transaction(async (manager) => {
-            await manager.save(Milestones, [...checkedUpdateMilestone, ...newMilestone])
+            await manager.save(Milestones, [...checkedUpdateMilestone, ...newMilestone], { reload: true })
         })
 
         // If updating data but it's not changed. Empty array
+        const finalData = await this.milestones.find({
+            where: {
+                progress: {
+                    id: progressId,
+                    class: { id: classId }
+                },
+            },
+            order: { index: 'ASC' }
+        });
+
         return {
-            updated: checkedUpdateMilestone,
-            added: newMilestone
-        }
+            updated: finalData
+                .filter(m => checkExistanceIdList.includes(m.id))
+                .map(({ createdBy, progress, ...m }) => m),
+
+            added: finalData
+                .filter(m => !checkExistanceIdList.includes(m.id))
+                .map(({ createdBy, progress, ...m }) => m)
+        };
 
     }
 
@@ -696,20 +720,20 @@ export class ProgressService {
                         .from("submissions", "s")
                         .innerJoin("forms", "f", "f.id = s.form_id")
                         .where("f.milestone = m.id")
-                        .andWhere("s.status = :status")
+                        .andWhere("s.status::text = :status")
                         .getQuery();
                     return `EXISTS (${subQuery})`;
                 })
-                // Check ScoreForm status 'accept'
-                .orWhere(sub_qb => {
-                    const subQuery = sub_qb.subQuery()
-                        .select("1")
-                        .from("score_forms", "sf")
-                        .where("sf.milestone = m.id")
-                        .andWhere("sf.status = :status")
-                        .getQuery();
-                    return `EXISTS (${subQuery})`;
-                });
+                    // Check ScoreForm status 'accept'
+                    .orWhere(sub_qb => {
+                        const subQuery = sub_qb.subQuery()
+                            .select("1")
+                            .from("score_forms", "sf")
+                            .where("sf.milestone = m.id")
+                            .andWhere("sf.status::text = :status")
+                            .getQuery();
+                        return `EXISTS (${subQuery})`;
+                    });
             }))
             .setParameter("status", SubmissionStatus.ACCEPT);
 
