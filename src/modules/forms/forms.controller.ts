@@ -14,10 +14,65 @@ export class FormsController {
     constructor(
         private readonly formsService: FormsService
     ) { }
-    // Get all forms (pagination) (Only system admin - uniadmin)
+    // Get all forms (pagination) (Only admin users)
     @Get('pagination')
     @Roles(MainRole.UNIADMIN, MainRole.USER)
-    async formsPagination (@Query() query: FormsPaginationDTO, @Req() req: Request) {
+    @ApiOkResponse({
+        description: 'Trả về danh sách dữ liệu kèm phân trang',
+        schema: {
+            type: 'object',
+            properties: {
+                data: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', example: '08750903-f56c-460b-bb98-151b9ce66803' },
+                            is_join_form: { type: 'boolean', example: false },
+                            label: { type: 'string', example: 'string' },
+                            description: { type: 'string', example: 'string' },
+                            field_count: { type: 'number', example: 2 },
+                            is_auto_open: { type: 'boolean', example: false },
+                            is_auto_close: { type: 'boolean', example: false },
+                            is_deleted: { type: 'boolean', example: false },
+                            is_stopped: { type: 'boolean', example: false },
+                            open_at: { type: 'string', format: 'date-time', nullable: true, example: null },
+                            close_at: { type: 'string', format: 'date-time', nullable: true, example: null },
+                            update_at: { type: 'string', format: 'date-time', example: '2026-04-17T11:36:20.222Z' },
+                            created_at: { type: 'string', format: 'date-time', example: '2026-04-17T11:36:20.222Z' },
+                            createdBy: {
+                                type: 'object',
+                                properties: {
+                                    id: { type: 'string', example: 'd5105d88-d54c-463f-a24e-52c92921dde2' },
+                                    full_name: { type: 'string', example: 'Nguyen Van A' },
+                                    email: { type: 'string', example: 'duytran.290804@gmail.com' },
+                                },
+                            },
+                            class: {
+                                type: 'object',
+                                properties: {
+                                    id: { type: 'string', example: '0c71dd63-6fa0-47c3-89a2-9257aba36112' },
+                                    label: { type: 'string', example: 'Lớp khóa luận tốt nghiệp' },
+                                },
+                            },
+                        },
+                    },
+                },
+                pagination: {
+                    type: 'object',
+                    properties: {
+                        total: { type: 'number', example: 1 },
+                        page: { type: 'number', example: 1 },
+                        size: { type: 'number', example: 10 },
+                        totalPages: { type: 'number', example: 1 },
+                    },
+                },
+            },
+        },
+    })
+    @ApiBadRequestResponse({ description: 'Dữ liệu không hợp lệ (thiếu classId hoặc formId).' })
+    @ApiForbiddenResponse({ description: 'Bạn không có quyền truy cập vào biểu mẫu của lớp học này.' })
+    async formsPagination(@Query() query: FormsPaginationDTO, @Req() req: Request) {
         return this.formsService.formsPagination(query, req)
     }
 
@@ -74,6 +129,7 @@ export class FormsController {
                             description: { type: 'string', example: 'string' },
                             input_type: { type: 'string', example: 'string' },
                             is_required: { type: 'boolean', example: true },
+                            is_deleted: { type: 'boolean', example: false },
                             unit: { type: 'string', example: 'character' },
                             max_attempts: { type: 'number', example: 200 },
                             min_attempts: { type: 'number', example: 200 },
@@ -95,8 +151,19 @@ export class FormsController {
                             choice_count: { type: 'number', example: 1 },
                             is_required: { type: 'boolean', example: true },
                             is_multiple: { type: 'boolean', example: false },
+                            is_deleted: { type: 'boolean', example: false },
                             update_at: { type: 'string', format: 'date-time' },
-                            created_at: { type: 'string', format: 'date-time' }
+                            created_at: { type: 'string', format: 'date-time' },
+                            checkbox_field_choices: {
+                                type: 'array', items: {
+                                    type: 'object',
+                                    properties: {
+                                        id: { type: 'string', example: "3dbfd348-ffa7-47fb-b626-b56f22b37732" },
+                                        index: { type: 'number', example: 1 },
+                                        body: { type: 'string', example: "Lựa chọn 1" }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -219,6 +286,7 @@ export class FormsController {
                             title: "string",
                             description: "string",
                             input_type: "string",
+                            is_deleted: false,
                             is_required: true,
                             unit: "character",
                             max_attempts: 200,
@@ -236,10 +304,17 @@ export class FormsController {
                             input_type: "checkbox",
                             choice_count: 1,
                             is_required: true,
+                            is_deleted: false,
                             is_multiple: false,
                             update_at: "2026-04-14T03:43:01.166Z",
                             created_at: "2026-04-14T03:13:45.499Z",
-                            checkbox_field_choices: []
+                            checkbox_field_choices: [
+                                {
+                                    id: "55546d82-e6a0-4d52-a675-d705085ac1c7",
+                                    index: 1,
+                                    body: "string"
+                                }
+                            ]
                         }
                     ]
                 }
@@ -372,4 +447,4 @@ export class FormsController {
         const idArray = Array.isArray(ids) ? ids : [ids];
         return this.formsService.removeFields(idArray, req)
     }
-    }
+}

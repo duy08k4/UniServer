@@ -1,6 +1,7 @@
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 import { RoomRole } from "src/enums/enums";
+import { Transform } from "class-transformer";
 
 export class ApprovedClassDTO {
     @ApiProperty({ description: 'ID of the class to approve' })
@@ -97,24 +98,44 @@ export class UpdateClassDTO {
     @IsOptional()
     @IsString()
     subject?: string
-    
+
     @ApiProperty({ description: 'System admin approve', required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     created_approval?: boolean
 
     @ApiProperty({ description: 'Class is banned by system admin', required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     is_banned?: boolean
 
     @ApiProperty({ description: 'Whether the class requires approval for creation', required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     required_approval?: boolean
 
     @ApiProperty({ description: 'Whether the class requires a join form', required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     required_join_form?: boolean
 }
@@ -154,6 +175,11 @@ export class UpdateCommitteeDTO {
 
     @ApiProperty({ description: 'true => committee, false => not committee', required: true })
     @IsNotEmpty()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     isCommittee: boolean
 }
@@ -192,26 +218,51 @@ export class updateMemberInClassDTO {
 
     @ApiProperty({ required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     roomadmin_approved?: boolean
 
     @ApiProperty({ required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     can_create_notifications?: boolean
 
     @ApiProperty({ required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     can_create_forms?: boolean
 
     @ApiProperty({ required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     can_create_score_forms?: boolean
 
     @ApiProperty({ required: false })
     @IsOptional()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     is_banned?: boolean
 }

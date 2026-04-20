@@ -11,6 +11,12 @@ export class ScoreFormColumns {
     @Column({ type: "varchar" })
     label: string
 
+    @Column({ type: 'int' })
+    index: number
+
+    @Column({type: 'varchar', nullable: true, default: null })
+    formula_content: string | null
+
     // Relations
     @ManyToOne(() => ScoreForms, (sf) => sf.columns, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'score_form' })

@@ -36,9 +36,6 @@ export class ScoreForms {
     @Column({ type: 'boolean', default: false })
     is_auto_close: boolean
 
-    @Column({ type: 'boolean', default: true })
-    email_notification_enabled: boolean
-
     @Column({ type: 'boolean', default: false })
     is_deleted: boolean
 

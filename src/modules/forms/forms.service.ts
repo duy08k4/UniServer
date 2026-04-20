@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO } from "./forms.dto";
 import { isDate, isUUID } from "class-validator";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -42,13 +42,29 @@ export class FormsService {
 
     // Get forms (pagination) (Only system admin - uniadmin)
     async formsPagination(query: FormsPaginationDTO, req: Request | any) {
-        const { page, size, search, is_deleted, is_stopped } = query
+        const { classId, page, size, search, is_deleted, is_stopped } = query
 
         if (!page || !size) throw new BadRequestException("Invalid data")
 
         // Check client's role
         const client = req.userData
-        if (client.role !== Role.UNIADMIN) throw new ForbiddenException("Access denied")
+        if (client.role !== Role.UNIADMIN) {
+            if (!classId) throw new ForbiddenException("Class not found")
+
+            const isRoomadmin = await this.classMemberRepo.findOne({
+                where: {
+                    role: RoomRole.ROOMADMIN,
+                    user: {
+                        id: client.id
+                    },
+                    class: {
+                        id: classId
+                    }
+                }
+            })
+
+            if (!isRoomadmin) throw new ForbiddenException("Access denied")
+        }
 
         const pageNum = parseInt(page);
         const sizeNum = parseInt(size);
@@ -66,6 +82,10 @@ export class FormsService {
             .take(sizeNum)
             .orderBy('form.label', 'ASC');
 
+        if (classId) {
+            queryBuilder.andWhere('class.id = :classId', { classId });
+        }
+
         // Filter by deleted/stopped status
         if (is_deleted !== undefined) {
             queryBuilder.andWhere('form.is_deleted = :is_deleted', { is_deleted });
@@ -79,9 +99,9 @@ export class FormsService {
             queryBuilder.andWhere(
                 new Brackets((qb) => {
                     qb.where('form.label ILIKE :search', { search: `%${search}%` })
-                      .orWhere('form.description ILIKE :search', { search: `%${search}%` })
-                      .orWhere('class.label ILIKE :search', { search: `%${search}%` })
-                      .orWhere('class.subject ILIKE :search', { search: `%${search}%` })
+                        .orWhere('form.description ILIKE :search', { search: `%${search}%` })
+                        .orWhere('class.label ILIKE :search', { search: `%${search}%` })
+                        .orWhere('class.subject ILIKE :search', { search: `%${search}%` })
                 }),
             );
         }
@@ -141,6 +161,13 @@ export class FormsService {
                     id: true,
                     full_name: true,
                     email: true
+                },
+                milestone: {
+                    id: true,
+                    label: true
+                },
+                notification: {
+                    id: true
                 }
             },
             relations: {
@@ -149,7 +176,9 @@ export class FormsService {
                 class: true,
                 createdBy: true,
                 fields: true,
-                checkboxFields: true
+                checkboxFields: {
+                    checkbox_field_choices: true
+                }
             },
             where: {
                 id: formId,
@@ -252,7 +281,7 @@ export class FormsService {
         const {
             classId, milestoneId, notificationId, formId,
             label, description,
-            is_auto_close, is_auto_open,
+            is_auto_close, is_auto_open, is_join_form,
             close_at, open_at,
             field_count,
             fields,
@@ -288,9 +317,22 @@ export class FormsService {
 
         for (const cf of checkboxFields) {
             if (cf.checkboxFieldId && !isUUID(cf.checkboxFieldId)) throw new BadRequestException(`Invalid checkboxField ID format: ${cf.checkboxFieldId}`)
-            for (const c of cf.listChoices) {
+            for (const c of cf.checkbox_field_choices) {
                 if (c.choiceId && !isUUID(c.choiceId)) throw new BadRequestException(`Invalid choice ID format: ${c.choiceId}`)
             }
+        }
+
+        if (typeof is_join_form === "boolean" && is_join_form) {
+            const anyJoinForm = await this.formRepo.findOne({
+                where: {
+                    is_join_form: true,
+                    class: {
+                        id: classId
+                    }
+                }
+            })
+
+            if (anyJoinForm) throw new ConflictException("Only one start form in one class")
         }
 
         if (!label || typeof is_auto_open !== "boolean" || typeof is_auto_close !== "boolean" ||
@@ -326,6 +368,7 @@ export class FormsService {
                 form.label = label;
                 form.description = description ?? null;
                 form.is_auto_open = is_auto_open;
+                form.is_join_form = is_join_form;
                 form.is_auto_close = is_auto_close;
                 form.open_at = open_at ? new Date(open_at) : null as any;
                 form.close_at = close_at ? new Date(close_at) : null as any;
@@ -338,6 +381,7 @@ export class FormsService {
                     description: description ?? null,
                     is_auto_open,
                     is_auto_close,
+                    is_join_form,
                     open_at: open_at ? new Date(open_at) : null,
                     close_at: close_at ? new Date(close_at) : null,
                     field_count: Number(field_count),
@@ -411,11 +455,11 @@ export class FormsService {
 
                 // Sync Choices
                 const existingChoiceIds = currentCF.checkbox_field_choices?.map(c => c.id) || [];
-                const incomingChoiceIds = cf.listChoices.map(c => c.choiceId).filter(id => id) as string[];
+                const incomingChoiceIds = cf.checkbox_field_choices.map(c => c.choiceId).filter(id => id) as string[];
                 const choicesToDelete = existingChoiceIds.filter(id => !incomingChoiceIds.includes(id));
                 if (choicesToDelete.length > 0) await manager.delete(CheckboxFieldChoices, choicesToDelete);
 
-                for (const choice of cf.listChoices) {
+                for (const choice of cf.checkbox_field_choices) {
                     const choiceData: DeepPartial<CheckboxFieldChoices> = {
                         index: Number(choice.index),
                         body: choice.body,

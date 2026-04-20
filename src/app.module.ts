@@ -12,6 +12,8 @@ import { ClassesModule } from "./modules/classes/classes.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { ProgressModule } from "./modules/progress/progress.module";
 import { FormsModule } from "./modules/forms/forms.module";
+import { ScoreForms } from "./entities/score_forms.en";
+import { ScoreFormsModule } from "./modules/scoreforms/scoreforms.module";
 
 @Module({
   imports: [
@@ -30,9 +32,8 @@ import { FormsModule } from "./modules/forms/forms.module";
       },
       inject: [ConfigService]
     }),
-
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule
+    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreForms, ScoreFormsModule
   ],
   controllers: [],
   providers: []

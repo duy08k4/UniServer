@@ -4,6 +4,11 @@ import { Equals, IsArray, IsBoolean, IsDate, IsEnum, IsNotEmpty, IsOptional, IsS
 import { Field_Label, Field_Type, Unit } from "src/enums/enums"
 
 export class FormsPaginationDTO {
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    classId?: string
+
     @ApiProperty()
     @IsNotEmpty()
     @IsString()
@@ -73,6 +78,11 @@ export class FormField {
 
     @ApiProperty()
     @IsNotEmpty()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     is_required: boolean
 
@@ -142,6 +152,11 @@ export class FormCheckboxField {
 
     @ApiProperty()
     @IsNotEmpty()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     is_required: boolean
 
@@ -156,7 +171,7 @@ export class FormCheckboxField {
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => FormCheckBoxFieldChoice)
-    listChoices: FormCheckBoxFieldChoice[]
+    checkbox_field_choices: FormCheckBoxFieldChoice[]
 }
 
 export class NewFormDTO {
@@ -186,6 +201,16 @@ export class NewFormDTO {
     @IsString()
     label: string
 
+    @ApiProperty({ description: "Sign the form is required for new member" })
+    @IsNotEmpty()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
+    @IsBoolean()
+    is_join_form: boolean
+
     @ApiProperty({ description: "The form's description" })
     @IsOptional()
     @IsString()
@@ -198,26 +223,36 @@ export class NewFormDTO {
 
     @ApiProperty({ description: "Open the form base on open_at" })
     @IsNotEmpty()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     is_auto_open: boolean
 
     @ApiProperty({ description: "Close the form base on close_at" })
     @IsNotEmpty()
+    @Transform(({ value }) => {
+        if (value === 'true' || value === true || value === 1 || value === '1') return true;
+        if (value === 'false' || value === false || value === 0 || value === '0') return false;
+        return undefined;
+    })
     @IsBoolean()
     is_auto_close: boolean
 
-    @ApiProperty({ example: null, description: "Time to open form automatically" })
+    @ApiPropertyOptional({ example: null, description: "Time to open form automatically" })
     @ValidateIf((object, value) => value !== null)
     @IsOptional()
-    @IsDate()
     @Type(() => Date)
+    @IsDate()
     open_at?: Date | null
 
-    @ApiProperty({ example: null, description: "Time to close form automatically" })
+    @ApiPropertyOptional({ example: null, description: "Time to close form automatically" })
     @ValidateIf((object, value) => value !== null)
     @IsOptional()
-    @IsDate()
     @Type(() => Date)
+    @IsDate()
     close_at?: Date | null
 
     @ApiProperty({

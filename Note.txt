@@ -52,6 +52,7 @@ Ngày tạo: 14/04/2026
   "field_count": "2",
   "is_auto_open": false,
   "is_auto_close": false,
+  "is_join_form": false,
   "open_at": null,
   "close_at": null,
   "fields": [
@@ -76,7 +77,7 @@ Ngày tạo: 14/04/2026
       "choice_count": "1",
       "is_required": true,
       "is_multiple": false,
-      "listChoices": [
+      "checkbox_field_choices": [
         {
           "index": "1",
           "body": "string"
