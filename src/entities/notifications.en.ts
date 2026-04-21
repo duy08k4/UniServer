@@ -16,9 +16,6 @@ export class Notifications {
     @Column({ type: 'varchar' })
     body: string
 
-    @Column({ type: 'boolean', default: false })
-    email_notification_enabled: boolean
-
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date
 
