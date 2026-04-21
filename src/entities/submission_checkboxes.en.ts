@@ -15,7 +15,7 @@ export class SubmissionCheckboxes {
     checkboxField: Checkbox_fields;
 
     @ManyToOne(() => CheckboxFieldChoices, (cfc) => cfc.submission_checkboxes, { onDelete: "CASCADE" })
-    fieldChoices: CheckboxFieldChoices[]
+    fieldChoices: CheckboxFieldChoices
 
     @ManyToOne(() => Submissions, (sub) => sub.checkboxes, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'submission' })
