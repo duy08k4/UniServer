@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Milestones } from "./milestones.en";
 import { Users } from "./user.en";
 import { Fields } from "./fields.en";
@@ -54,9 +54,8 @@ export class Forms {
     @JoinColumn({ name: 'milestone' })
     milestone: Milestones | null
 
-    @ManyToOne(() => Notifications, (noti) => noti.forms, { onDelete: 'CASCADE', nullable: true })
-    @JoinColumn({ name: 'notification' })
-    notification: Notifications | null
+    @ManyToMany(() => Notifications, (noti) => noti.forms)
+    notifications: Notifications[]
 
     @ManyToOne(() => Users, (user) => user.forms, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'created_by' })

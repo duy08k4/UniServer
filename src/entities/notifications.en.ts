@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Classes } from "./classes.en";
 import { Users } from "./user.en";
 import { Milestones } from "./milestones.en";
@@ -13,7 +13,7 @@ export class Notifications {
     @Column({ type: 'varchar' })
     title: string
 
-    @Column({ type: 'varchar' })
+    @Column({ type: 'text' })
     body: string
 
     @CreateDateColumn({ type: 'timestamptz' })
@@ -35,6 +35,11 @@ export class Notifications {
     @JoinColumn({ name: 'milestone' })
     milestone: Milestones | null
 
-    @OneToMany(() => Forms, (form) => form.notification, { cascade: true })
+    @ManyToMany(() => Forms, (form) => form.notifications)
+    @JoinTable({
+        name: 'notification_forms',
+        joinColumn: { name: 'notification_id', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'form_id', referencedColumnName: 'id' },
+    })
     forms: Forms[]
 }

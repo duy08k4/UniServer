@@ -38,10 +38,27 @@ export enum Unit {
 }
 
 export enum Field_Label {
-  NULL = "null", // 
-  OUTLINE_FILE = "outline_file", // Đề cương
-  REPORT_FILE = "report_file", // Báo cáo tiến độ
-  FINAL_THESIS = "final_thesis" // Bài báo cáo cuối
+  NULL = "null",
+  OUTLINE_FILE = "outline_file",           // Đề cương
+  REPORT_FILE = "report_file",             // Báo cáo tiến độ
+  FINAL_THESIS = "final_thesis",           // Bài báo cáo cuối
+  SUPERVISOR_REVIEW_FILE = "supervisor_review_file", // Phiếu nhận xét của GVHD
+  REVISION_FILE = "revision_file",         // Giải trình chỉnh sửa sau bảo vệ
+}
+
+export enum ThesisType {
+  THESIS = "thesis",     // Khóa luận tốt nghiệp (KLTN)
+  CAPSTONE = "capstone", // Tiểu luận tốt nghiệp (TLTN)
+}
+
+export enum TopicStatus {
+  DRAFT = "draft",                             // Vừa tạo, chưa mời GVHD
+  INVITED = "invited",                         // Đã mời GVHD, chờ phản hồi
+  SUPERVISOR_REJECTED = "supervisor_rejected", // GVHD từ chối
+  SUPERVISOR_ACCEPTED = "supervisor_accepted", // GVHD đồng ý, chờ SV nộp đề cương
+  OUTLINE_PENDING = "outline_pending",         // SV đã nộp đề cương, chờ UniAdmin duyệt
+  OUTLINE_REJECTED = "outline_rejected",       // UniAdmin yêu cầu chỉnh sửa
+  APPROVED = "approved",                       // Hoàn tất, được tham gia milestone tiếp theo
 }
 
 export enum ScoreForm_Type {

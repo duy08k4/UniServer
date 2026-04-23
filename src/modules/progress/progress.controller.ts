@@ -485,4 +485,10 @@ export class ProgressController {
         const idArray = Array.isArray(ids) ? ids : [ids];
         return this.progressService.removeMilestones(idArray, req)
     }
+
+    @Post('milestone/registration')
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async createRegistrationMilestone(@Query('classId') classId: string, @Req() req: Request) {
+        return this.progressService.createRegistrationMilestone(classId, req)
+    }
 }

@@ -166,13 +166,14 @@ export class FormsService {
                     id: true,
                     label: true
                 },
-                notification: {
-                    id: true
+                notifications: {
+                    id: true,
+                    title: true
                 }
             },
             relations: {
                 milestone: true,
-                notification: true,
+                notifications: true,
                 class: true,
                 createdBy: true,
                 fields: true,
@@ -374,7 +375,6 @@ export class FormsService {
                 form.close_at = close_at ? new Date(close_at) : null as any;
                 form.field_count = Number(field_count);
                 form.milestone = milestoneId ? { id: milestoneId } as Milestones : null;
-                form.notification = notificationId ? { id: notificationId } as Notifications : null;
             } else {
                 const formData: DeepPartial<Forms> = {
                     label,
@@ -387,7 +387,6 @@ export class FormsService {
                     field_count: Number(field_count),
                     class: { id: classId } as Classes,
                     milestone: milestoneId ? { id: milestoneId } as Milestones : null,
-                    notification: notificationId ? { id: notificationId } as Notifications : null,
                     createdBy: { id: userId } as Users
                 };
                 form = manager.create(Forms, formData);
@@ -478,7 +477,7 @@ export class FormsService {
 
             return await manager.findOne(Forms, {
                 where: { id: savedForm.id },
-                relations: ['fields', 'checkboxFields', 'checkboxFields.checkbox_field_choices', 'milestone', 'notification']
+                relations: ['fields', 'checkboxFields', 'checkboxFields.checkbox_field_choices', 'milestone', 'notifications']
             });
         });
     }

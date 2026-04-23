@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
-import { IsNotEmpty, IsOptional, IsString } from "class-validator"
+import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator"
 
 export class NotificationsPaginationDTO {
     @ApiPropertyOptional()
@@ -48,4 +48,10 @@ export class UpdateNotificationDTO {
     @IsOptional()
     @IsString()
     milestoneId?: string
-}
+
+    @ApiPropertyOptional({ type: [String] })
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    formIds?: string[]
+    }

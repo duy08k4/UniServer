@@ -8,7 +8,7 @@ import { MainRole } from "@app/enums/enums";
 import { Roles } from "@app/decorators/roles.decorator";
 
 @ApiTags("Notification")
-@Controller('notivications')
+@Controller('notifications')
 @UseGuards(AuthGuard, RoleGuard)
 export class NotificationsController {
     constructor(
@@ -36,6 +36,7 @@ export class NotificationsController {
                             createdBy: { type: 'object', properties: { id: { type: 'string' }, full_name: { type: 'string' }, email: { type: 'string' } } },
                             class: { type: 'object', properties: { id: { type: 'string' }, label: { type: 'string' }, join_code: { type: 'string' }, subject: { type: 'string' } } },
                             milestone: { nullable: true, type: 'object', properties: { id: { type: 'string' }, label: { type: 'string' }, description: { type: 'string', nullable: true } } },
+                            forms: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, label: { type: 'string' }, is_stopped: { type: 'boolean' } } } },
                         }
                     }
                 },

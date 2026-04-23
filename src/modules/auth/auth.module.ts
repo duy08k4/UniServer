@@ -15,6 +15,6 @@ import { UseCasePermission } from "src/entities/use_case_permissions.en";
     imports: [TypeOrmModule.forFeature([Users, UseCasePermission])],
     controllers: [AuthController],
     providers: [AuthService],
-    exports: [AuthService]
+    exports: [AuthService, TypeOrmModule]
 })
 export class AuthModule {}

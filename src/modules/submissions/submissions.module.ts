@@ -10,11 +10,13 @@ import { CheckboxFieldChoices } from "src/entities/checkbox_field_choices.en";
 import { Submissions } from "src/entities/submissions.en";
 import { Users } from "src/entities/user.en";
 import { ClassMembers } from "src/entities/class_members.en";
+import { Topics } from "src/entities/topics.en";
+import { Milestones } from "src/entities/milestones.en";
 
 @Module({
     imports: [
         AuthModule,
-        TypeOrmModule.forFeature([Forms, Fields, Checkbox_fields, CheckboxFieldChoices, Submissions, Users, ClassMembers])
+        TypeOrmModule.forFeature([Forms, Fields, Checkbox_fields, CheckboxFieldChoices, Submissions, Users, ClassMembers, Topics, Milestones])
     ],
     controllers: [SubmissionController],
     providers: [SubmissionService],

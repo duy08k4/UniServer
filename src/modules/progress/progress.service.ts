@@ -8,17 +8,25 @@ import { Role, RoomRole, SubmissionStatus } from "src/enums/enums";
 import { Milestones } from "src/entities/milestones.en";
 import { CLASS_MEMBERSHIP_REQUIRED_403 } from "src/config/errorCustom";
 import { isUUID } from "class-validator";
+import { Topics } from "src/entities/topics.en";
+import { ConfigService } from "@nestjs/config";
+import { createClient } from "@supabase/supabase-js";
+import { ProgressGateway } from "./progress.gateway";
 
 @Injectable()
 export class ProgressService {
     constructor(
+        private readonly progressGateway: ProgressGateway,
         private dataSource: DataSource,
+        private readonly configService: ConfigService,
         @InjectRepository(Progresses)
         private readonly progresses: Repository<Progresses>,
         @InjectRepository(ClassMembers)
         private readonly classMembers: Repository<ClassMembers>,
         @InjectRepository(Milestones)
-        private readonly milestones: Repository<Milestones>
+        private readonly milestones: Repository<Milestones>,
+        @InjectRepository(Topics)
+        private readonly topics: Repository<Topics>,
     ) { }
     // -------------------------------------------------------- PROGRESS --------------------------------------------------------------------
     // Get all progresses (pagination)
@@ -123,7 +131,8 @@ export class ProgressService {
             },
             relations: { class: true, createdBy: true, milestones: true },
             where: {
-                class: { id: classId }
+                class: { id: classId },
+                milestones: { is_deleted: false }
             },
             order: {
                 milestones: {
@@ -184,6 +193,14 @@ export class ProgressService {
         })
 
         await this.progresses.save(newProgress)
+
+        await this.milestones.save(this.milestones.create({
+            index: 0,
+            label: "Đăng ký đề tài",
+            is_registration_milestone: true,
+            progress: { id: newProgress.id },
+            createdBy: { id: client.id }
+        }))
 
         const getProgress = await this.progresses.findOne({
             select: {
@@ -255,6 +272,9 @@ export class ProgressService {
             { id: progressId, class: { id: classId } },
             dataUpdate
         )
+
+        // Socket
+        this.progressGateway.updateProgress({ classId })
 
         return await this.getOneProgress({ classId }, req)
     }
@@ -708,6 +728,23 @@ export class ProgressService {
             }
         }
 
+        // Xóa file outline trên Supabase Storage của các topics thuộc milestone sắp xóa
+        const topicsWithFiles = await this.topics.find({
+            where: { milestone: { id: In(filterMilestoneIds) } },
+            select: { outline_file_url: true }
+        })
+        const filePaths = topicsWithFiles
+            .filter(t => t.outline_file_url)
+            .map(t => t.outline_file_url!.split('/Outline/')[1])
+            .filter(Boolean)
+        if (filePaths.length > 0) {
+            const supabase = createClient(
+                this.configService.get<string>('SUPABASE_URL')!,
+                this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY')!
+            )
+            await supabase.storage.from('Outline').remove(filePaths)
+        }
+
         // 2. Phân loại Milestone: Xóa mềm (nếu có submission/scoreForm status 'accept') và Xóa cứng (còn lại)
         const softDeleteQuery = this.milestones.createQueryBuilder("m")
             .select("m.id")
@@ -757,5 +794,34 @@ export class ProgressService {
                 hard_deleted: hardDeleteIds
             };
         });
+    }
+
+    // Create registration milestone
+    async createRegistrationMilestone(classId: string, req: Request | any) {
+        const client = req.userData
+
+        const member = await this.classMembers.findOne({
+            where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN }
+        })
+        if (!member && client.role !== Role.UNIADMIN) throw new ForbiddenException("Access denied")
+
+        const progress = await this.progresses.findOne({
+            where: { class: { id: classId } },
+            relations: { milestones: true }
+        })
+        if (!progress) throw new NotFoundException("Progress not found")
+
+        const alreadyExists = progress.milestones.some(m => m.is_registration_milestone)
+        if (alreadyExists) throw new ConflictException("Registration milestone already exists")
+
+        const milestone = this.milestones.create({
+            index: 0,
+            label: "Đăng ký đề tài",
+            is_registration_milestone: true,
+            progress: { id: progress.id },
+            createdBy: { id: client.id }
+        })
+        await this.milestones.save(milestone)
+        return this.getOneProgress({ classId }, req)
     }
 }

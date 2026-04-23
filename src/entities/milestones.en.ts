@@ -4,6 +4,7 @@ import { Progresses } from "./progresses.en";
 import { Forms } from "./forms.en";
 import { ScoreForms } from "./score_forms.en";
 import { Notifications } from "./notifications.en";
+import { Topics } from "./topics.en";
 
 @Entity('milestones')
 @Index(['progress', 'label', 'createdBy', 'is_deleted', 'is_stopped'])
@@ -25,6 +26,9 @@ export class Milestones {
 
     @Column({ type: 'boolean', default: false })
     is_stopped: boolean
+
+    @Column({ type: 'boolean', default: false })
+    is_registration_milestone: boolean
 
     @UpdateDateColumn({ type: 'timestamptz' })
     updated_at: Date
@@ -49,4 +53,7 @@ export class Milestones {
 
     @OneToMany(() => Notifications, (n) => n.milestone, { cascade: true })
     notifications: Notifications[]
+
+    @OneToMany(() => Topics, (topic) => topic.milestone, { cascade: true })
+    topics: Topics[]
 }

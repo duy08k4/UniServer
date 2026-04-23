@@ -98,7 +98,17 @@ export class FormsController {
                 update_at: { type: 'string', format: 'date-time', example: '2026-04-14T03:43:01.166Z' },
                 created_at: { type: 'string', format: 'date-time', example: '2026-04-14T03:13:45.499Z' },
                 milestone: { type: 'object', example: null, nullable: true },
-                notification: { type: 'object', example: null, nullable: true },
+                notifications: {
+                    type: 'array',
+                    nullable: true,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            title: { type: 'string' }
+                        }
+                    }
+                },
                 createdBy: {
                     type: 'object',
                     properties: {
@@ -277,7 +287,7 @@ export class FormsController {
                     update_at: "2026-04-14T03:43:01.166Z",
                     created_at: "2026-04-14T03:13:45.499Z",
                     milestone: null,
-                    notification: null,
+                    notifications: [],
                     fields: [
                         {
                             id: "be742b20-d50b-4611-a051-8e49c3e344be",

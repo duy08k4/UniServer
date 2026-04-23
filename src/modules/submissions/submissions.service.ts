@@ -10,8 +10,10 @@ import { SubmissionAnswers } from "src/entities/submission_answers.en";
 import { SubmissionCheckboxes } from "src/entities/submission_checkboxes.en";
 import { Users } from "src/entities/user.en";
 import { ClassMembers } from "src/entities/class_members.en";
+import { Topics } from "src/entities/topics.en";
+import { Milestones } from "src/entities/milestones.en";
 import { UpdateSubmissionDTO, SubmissionPaginationDTO } from "./submissions.dto";
-import { MainRole, Role, RoomRole } from "src/enums/enums";
+import { MainRole, Role, RoomRole, TopicStatus } from "src/enums/enums";
 
 @Injectable()
 export class SubmissionService {
@@ -23,6 +25,8 @@ export class SubmissionService {
         @InjectRepository(CheckboxFieldChoices) private readonly choiceRepo: Repository<CheckboxFieldChoices>,
         @InjectRepository(Submissions) private readonly submissionRepo: Repository<Submissions>,
         @InjectRepository(ClassMembers) private readonly classMemberRepo: Repository<ClassMembers>,
+        @InjectRepository(Topics) private readonly topicRepo: Repository<Topics>,
+        @InjectRepository(Milestones) private readonly milestoneRepo: Repository<Milestones>,
     ) { }
 
     async getSubmissionsPagination(query: SubmissionPaginationDTO, req: Request | any) {
@@ -150,6 +154,26 @@ export class SubmissionService {
         })
         if (!form || form.is_deleted) throw new NotFoundException({ errorCode: 'FORM_NOT_FOUND', message: 'Form không tồn tại' })
         if (form.is_stopped) throw new BadRequestException({ errorCode: 'FORM_STOPPED', message: 'Form đã đóng' })
+
+        // Guard: nếu progress có registration milestone thì SV phải có topic APPROVED
+        if (userId) {
+            const formWithMilestone = await this.formRepo.findOne({
+                where: { id: dto.formId },
+                relations: { milestone: { progress: true } },
+                select: { id: true, milestone: { id: true, is_registration_milestone: true, progress: { id: true } } }
+            })
+            if (formWithMilestone?.milestone && !formWithMilestone.milestone.is_registration_milestone) {
+                const registrationMilestone = await this.milestoneRepo.findOne({
+                    where: { progress: { id: formWithMilestone.milestone.progress.id }, is_registration_milestone: true }
+                })
+                if (registrationMilestone) {
+                    const approvedTopic = await this.topicRepo.findOne({
+                        where: { milestone: { id: registrationMilestone.id }, student: { id: userId }, status: TopicStatus.APPROVED }
+                    })
+                    if (!approvedTopic) throw new ForbiddenException({ errorCode: 'TOPIC_NOT_APPROVED', message: 'Đề tài chưa được duyệt' })
+                }
+            }
+        }
 
         // Step 2 — Validate submission
         let existingSubmission: Submissions | null = null
