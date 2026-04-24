@@ -132,7 +132,7 @@ export class ProgressService {
             relations: { class: true, createdBy: true, milestones: true },
             where: {
                 class: { id: classId },
-                milestones: { is_deleted: false }
+                is_deleted: false
             },
             order: {
                 milestones: {
@@ -142,6 +142,9 @@ export class ProgressService {
         })
 
         if (!progress) throw new NotFoundException("Progress not found")
+
+        // Filter out deleted milestones
+        progress.milestones = progress.milestones.filter(m => !m.is_deleted)
 
         return progress
     }
@@ -474,7 +477,7 @@ export class ProgressService {
             // Check member
             const isMember = await this.classMembers.findOne({
                 where: {
-                    user: client.id,
+                    user: { id: client.id },
                     class: {
                         id: classId
                     }
@@ -485,9 +488,41 @@ export class ProgressService {
         }
 
         const milestone = await this.milestones.findOne({
+            select: {
+                createdBy: {
+                    id: true,
+                    full_name: true,
+                    email: true
+                },
+                notifications: {
+                    id: true,
+                    title: true,
+                    body: true,
+                    created_at: true,
+                    updated_at: true,
+                    createdBy: {
+                        id: true,
+                        full_name: true,
+                        email: true,
+                        classMember: {
+                            id: true,
+                            role: true
+                        }
+                    }
+                }
+            },
             relations: {
-                forms: true,
-                scoreForms: true
+                forms: {
+                    createdBy: true
+                },
+                scoreForms: {
+                    createdBy: true,
+                },
+                notifications: {
+                    createdBy: {
+                        classMember: true
+                    }
+                }
             },
             where: {
                 id: milestoneId,
@@ -528,18 +563,21 @@ export class ProgressService {
         const updateMilestone: Partial<Milestones>[] = []
 
         // Validate data and order
+        let existedRegistrationMilestone: boolean = false
         milestoneList.forEach((m, index) => {
             const order = index + 1
             const checkOrder = milestoneList.find(m => m.index === order.toString())
             if (!checkOrder) throw new BadRequestException("The order of a milestone is invalid")
             if (!m.label.trim()) throw new BadRequestException("Invalid data of a milestone")
 
+            if (m.is_registration_milestone && existedRegistrationMilestone) throw new ConflictException("A process with only one project registration milestone")
             if (m.id) {
                 if (!isUUID(m.id)) throw new BadRequestException("A milestone ID is invalid")
 
                 updateMilestone.push({
                     id: m.id,
                     label: m.label,
+                    is_registration_milestone: m.is_registration_milestone,
                     index: Number(m.index),
                     description: m.description ? m.description : undefined,
                     is_stopped: typeof m.is_stopped === "boolean" ? m.is_stopped : false,
@@ -549,6 +587,7 @@ export class ProgressService {
             } else {
                 newMilestone.push({
                     label: m.label,
+                    is_registration_milestone: m.is_registration_milestone,
                     index: Number(m.index),
                     description: m.description ? m.description : undefined,
                     is_stopped: typeof m.is_stopped === "boolean" ? m.is_stopped : false,

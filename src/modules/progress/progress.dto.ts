@@ -149,6 +149,11 @@ export class MilestoneDTO {
     @IsNotEmpty()
     label: string;
 
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsBoolean()
+    is_registration_milestone: boolean
+
     @ApiProperty({ example: 'Giai đoạn khởi tạo dự án' })
     @IsString()
     description: string;

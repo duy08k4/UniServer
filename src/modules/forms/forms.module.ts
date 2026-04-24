@@ -13,6 +13,7 @@ import { ClassMembers } from "src/entities/class_members.en";
 import { Milestones } from "src/entities/milestones.en";
 import { Notifications } from "src/entities/notifications.en";
 import { Submissions } from "src/entities/submissions.en";
+import { FormsGateway } from "./forms.gateway";
 
 @Module({
     imports: [
@@ -23,7 +24,7 @@ import { Submissions } from "src/entities/submissions.en";
         ])
     ],
     controllers: [FormsController],
-    providers: [FormsService],
+    providers: [FormsService, FormsGateway],
     exports: []
 })
 export class FormsModule { }

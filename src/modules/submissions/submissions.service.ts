@@ -146,46 +146,68 @@ export class SubmissionService {
 
     async upsertSubmission(dto: UpdateSubmissionDTO, req: Request | any) {
         const userId = req.userData.id
+        const now = new Date()
 
-        // Step 1 — Validate form
+        // Step 1 — Validate form and class membership
         const form = await this.formRepo.findOne({
             where: { id: dto.formId },
-            select: ['id', 'is_deleted', 'is_stopped']
+            relations: { class: true, milestone: { progress: true } },
+            select: {
+                id: true,
+                is_deleted: true,
+                is_stopped: true,
+                is_auto_open: true,
+                is_auto_close: true,
+                open_at: true,
+                close_at: true,
+                class: { id: true },
+                milestone: { id: true, is_registration_milestone: true, progress: { id: true } }
+            }
         })
+
         if (!form || form.is_deleted) throw new NotFoundException({ errorCode: 'FORM_NOT_FOUND', message: 'Form không tồn tại' })
+
+        // Check Membership
+        const isMember = await this.classMemberRepo.findOne({
+            where: { class: { id: form.class.id }, user: { id: userId }, is_deleted: false, is_banned: false }
+        })
+        if (!isMember) throw new ForbiddenException({ errorCode: 'NOT_CLASS_MEMBER', message: 'Bạn không phải là thành viên của lớp này' })
+
+        // Check Form Status & Time
         if (form.is_stopped) throw new BadRequestException({ errorCode: 'FORM_STOPPED', message: 'Form đã đóng' })
 
-        // Guard: nếu progress có registration milestone thì SV phải có topic APPROVED
-        if (userId) {
-            const formWithMilestone = await this.formRepo.findOne({
-                where: { id: dto.formId },
-                relations: { milestone: { progress: true } },
-                select: { id: true, milestone: { id: true, is_registration_milestone: true, progress: { id: true } } }
+        if (form.is_auto_open && form.open_at && now < form.open_at) {
+            throw new BadRequestException({ errorCode: 'FORM_NOT_OPENED', message: 'Form chưa đến thời gian mở' })
+        }
+
+        if (form.is_auto_close && form.close_at && now > form.close_at) {
+            throw new BadRequestException({ errorCode: 'FORM_EXPIRED', message: 'Form đã hết hạn nộp' })
+        }
+
+        // Guard: Topic approval check
+        if (form.milestone && !form.milestone.is_registration_milestone) {
+            const registrationMilestone = await this.milestoneRepo.findOne({
+                where: { progress: { id: form.milestone.progress.id }, is_registration_milestone: true }
             })
-            if (formWithMilestone?.milestone && !formWithMilestone.milestone.is_registration_milestone) {
-                const registrationMilestone = await this.milestoneRepo.findOne({
-                    where: { progress: { id: formWithMilestone.milestone.progress.id }, is_registration_milestone: true }
+            if (registrationMilestone) {
+                const approvedTopic = await this.topicRepo.findOne({
+                    where: { milestone: { id: registrationMilestone.id }, student: { id: userId }, status: TopicStatus.APPROVED }
                 })
-                if (registrationMilestone) {
-                    const approvedTopic = await this.topicRepo.findOne({
-                        where: { milestone: { id: registrationMilestone.id }, student: { id: userId }, status: TopicStatus.APPROVED }
-                    })
-                    if (!approvedTopic) throw new ForbiddenException({ errorCode: 'TOPIC_NOT_APPROVED', message: 'Đề tài chưa được duyệt' })
-                }
+                if (!approvedTopic) throw new ForbiddenException({ errorCode: 'TOPIC_NOT_APPROVED', message: 'Đề tài của bạn chưa được duyệt' })
             }
         }
 
-        // Step 2 — Validate submission
+        // Step 2 — Validate submission ownership/duplication
         let existingSubmission: Submissions | null = null
         if (dto.id) {
             existingSubmission = await this.submissionRepo.findOne({ where: { id: dto.id, user: { id: userId } } })
-            if (!existingSubmission) throw new NotFoundException({ errorCode: 'SUBMISSION_NOT_FOUND', message: 'Submission không tồn tại' })
+            if (!existingSubmission) throw new NotFoundException({ errorCode: 'SUBMISSION_NOT_FOUND', message: 'Bản nộp không tồn tại hoặc không thuộc về bạn' })
         } else {
             const duplicate = await this.submissionRepo.findOne({ where: { form: { id: dto.formId }, user: { id: userId } } })
             if (duplicate) throw new ConflictException({ errorCode: 'SUBMISSION_EXISTED', message: 'Bạn đã nộp form này rồi' })
         }
 
-        // Step 3 — Batch validate fields & choices (avoid N+1)
+        // Step 3 — Batch validate fields & choices
         const fieldIds = dto.answer.map(a => a.fieldId)
         const cbFieldIds = dto.answer_checkbox.map(a => a.checkboxFieldId)
         const choiceIds = dto.answer_checkbox.map(a => a.fieldChoicesId)
@@ -202,13 +224,13 @@ export class SubmissionService {
 
         for (const a of dto.answer) {
             if (!fieldMap.has(a.fieldId))
-                throw new NotFoundException({ errorCode: 'FIELD_NOT_FOUND', message: `Field ${a.fieldId} không tồn tại` })
+                throw new NotFoundException({ errorCode: 'FIELD_NOT_FOUND', message: `Trường dữ liệu ${a.fieldId} không tồn tại` })
         }
         for (const a of dto.answer_checkbox) {
             if (!cbFieldMap.has(a.checkboxFieldId))
-                throw new NotFoundException({ errorCode: 'FIELD_NOT_FOUND', message: `Checkbox field ${a.checkboxFieldId} không tồn tại` })
+                throw new NotFoundException({ errorCode: 'FIELD_NOT_FOUND', message: `Trường trắc nghiệm ${a.checkboxFieldId} không tồn tại` })
             if (!choiceMap.has(a.fieldChoicesId))
-                throw new NotFoundException({ errorCode: 'CHOICE_NOT_FOUND', message: `Choice ${a.fieldChoicesId} không tồn tại` })
+                throw new NotFoundException({ errorCode: 'CHOICE_NOT_FOUND', message: `Lựa chọn ${a.fieldChoicesId} không tồn tại` })
         }
 
         // Step 4-7 — Transaction
@@ -216,7 +238,9 @@ export class SubmissionService {
             // Step 4 — Upsert submission
             let savedSubmission: Submissions
             if (existingSubmission) {
-                savedSubmission = await manager.save(Submissions, Object.assign(existingSubmission, { updated_at: new Date() }))
+                // Manually updating updated_at if needed, though TypeORM's @UpdateDateColumn handles it on save
+                existingSubmission.updated_at = new Date()
+                savedSubmission = await manager.save(Submissions, existingSubmission)
             } else {
                 savedSubmission = await manager.save(Submissions, manager.create(Submissions, {
                     form: { id: dto.formId } as DeepPartial<Forms>,
@@ -240,7 +264,7 @@ export class SubmissionService {
                 answersToCreate.length ? manager.save(SubmissionAnswers, answersToCreate) : Promise.resolve(),
                 ...answersToUpdate.map(async a => {
                     const result = await manager.update(SubmissionAnswers, { id: a.id, submission: savedSubmission.id }, { body: a.body, input_type: a.input_type })
-                    if (!result.affected) throw new NotFoundException({ errorCode: 'ANSWER_NOT_FOUND', message: `Answer ${a.id} không tồn tại` })
+                    if (!result.affected) throw new NotFoundException({ errorCode: 'ANSWER_NOT_FOUND', message: `Câu trả lời ${a.id} không tồn tại` })
                 })
             ])
 
@@ -259,14 +283,20 @@ export class SubmissionService {
                 checkboxesToCreate.length ? manager.save(SubmissionCheckboxes, checkboxesToCreate) : Promise.resolve(),
                 ...checkboxesToUpdate.map(async a => {
                     const result = await manager.update(SubmissionCheckboxes, { id: a.id, submission: savedSubmission.id }, { checkboxField: { id: a.checkboxFieldId }, fieldChoices: { id: a.fieldChoicesId } })
-                    if (!result.affected) throw new NotFoundException({ errorCode: 'ANSWER_CHECKBOX_NOT_FOUND', message: `Answer checkbox ${a.id} không tồn tại` })
+                    if (!result.affected) throw new NotFoundException({ errorCode: 'ANSWER_CHECKBOX_NOT_FOUND', message: `Câu trả lời trắc nghiệm ${a.id} không tồn tại` })
                 })
             ])
 
-            // Step 7 — Return
+            // Step 7 — Return detailed submission
             return manager.findOne(Submissions, {
                 where: { id: savedSubmission.id },
-                relations: { answers: true, checkboxes: true }
+                relations: { 
+                    answers: true, 
+                    checkboxes: { 
+                        checkboxField: true,
+                        fieldChoices: true 
+                    } 
+                }
             })
         })
     }

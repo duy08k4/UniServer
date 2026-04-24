@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import { RoleGuard } from "../auth/role.guard";
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO } from "./forms.dto";
+import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO, ToggleStopDTO } from "./forms.dto";
 import { FormsService } from "./forms.service";
 import { MainRole } from "src/enums/enums";
 import { Roles } from "src/decorators/roles.decorator";
@@ -155,7 +155,7 @@ export class FormsController {
                         properties: {
                             id: { type: 'string', example: 'bc17014b-925c-4fad-908a-137f61aad67e' },
                             index: { type: 'number', example: 2 },
-                            label: { type: 'string', example: 'string' },
+                            title: { type: 'string', example: 'string' },
                             description: { type: 'string', example: 'string' },
                             input_type: { type: 'string', example: 'checkbox' },
                             choice_count: { type: 'number', example: 1 },
@@ -309,7 +309,7 @@ export class FormsController {
                         {
                             id: "bc17014b-925c-4fad-908a-137f61aad67e",
                             index: 2,
-                            label: "string",
+                            title: "string",
                             description: "string",
                             input_type: "checkbox",
                             choice_count: 1,
@@ -456,5 +456,12 @@ export class FormsController {
     async removeFields(@Query('ids') ids: string | string[], @Req() req: Request) {
         const idArray = Array.isArray(ids) ? ids : [ids];
         return this.formsService.removeFields(idArray, req)
+    }
+
+    @Patch('toggle-stop')
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    @ApiOperation({ summary: "Toggle is_stopped for a form" })
+    async toggleStop(@Body() body: ToggleStopDTO, @Req() req: Request) {
+        return this.formsService.toggleStop(body, req)
     }
 }

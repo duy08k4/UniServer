@@ -133,7 +133,7 @@ export class FormCheckboxField {
     @ApiProperty()
     @IsNotEmpty()
     @IsString()
-    label: string
+    title: string
 
     @ApiProperty()
     @IsOptional()
@@ -282,4 +282,16 @@ export class GetFormDetailDTO {
     @IsNotEmpty()
     @IsString()
     formId: string
+}
+
+export class ToggleStopDTO {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    formId: string
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    classId: string
 }

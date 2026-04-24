@@ -1,9 +1,9 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO } from "./forms.dto";
+import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO, ToggleStopDTO } from "./forms.dto";
 import { isDate, isUUID } from "class-validator";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Forms } from "src/entities/forms.en";
-import { Brackets, DataSource, DeepPartial, In, Repository } from "typeorm";
+import { Brackets, DataSource, DeepPartial, In, Not, Repository } from "typeorm";
 import { Fields } from "src/entities/fields.en";
 import { Checkbox_fields } from "src/entities/checkbox_fields.en";
 import { CheckboxFieldChoices } from "src/entities/checkbox_field_choices.en";
@@ -15,11 +15,13 @@ import { Role, RoomRole, SubmissionStatus } from "src/enums/enums";
 import { Users } from "src/entities/user.en";
 import { Submissions } from "src/entities/submissions.en";
 import { privateDecrypt } from "crypto";
+import { FormsGateway } from "./forms.gateway";
 
 @Injectable()
 export class FormsService {
     constructor(
         private readonly dataSource: DataSource,
+        private readonly formsGateway: FormsGateway,
         @InjectRepository(Submissions)
         private readonly submissionRepo: Repository<Submissions>,
         @InjectRepository(Forms)
@@ -327,9 +329,8 @@ export class FormsService {
             const anyJoinForm = await this.formRepo.findOne({
                 where: {
                     is_join_form: true,
-                    class: {
-                        id: classId
-                    }
+                    class: { id: classId },
+                    ...(formId && { id: Not(formId) })
                 }
             })
 
@@ -341,7 +342,18 @@ export class FormsService {
             throw new BadRequestException("Invalid basic data")
         }
 
-        if (open_at && close_at && new Date(open_at) >= new Date(close_at)) {
+        if (fields.length + checkboxFields.length === 0) {
+            throw new BadRequestException("Form must have at least one field")
+        }
+
+        if (is_auto_open && !open_at) throw new BadRequestException("open_at is required when is_auto_open is enabled")
+        if (is_auto_close && !close_at) throw new BadRequestException("close_at is required when is_auto_close is enabled")
+        
+        if (open_at && new Date(open_at) <= new Date()) {
+            throw new BadRequestException("The open date must be later than the current time.")
+        }
+
+        if (open_at && close_at && new Date(open_at) > new Date(close_at)) {
             throw new BadRequestException("Open time must be before close time")
         }
 
@@ -355,6 +367,7 @@ export class FormsService {
         }
 
         // --- Transaction ---
+        let isStopped =  open_at ? new Date(open_at) > new Date() : false
         return await this.dataSource.transaction(async (manager) => {
             let form: Forms;
 
@@ -370,6 +383,7 @@ export class FormsService {
                 form.description = description ?? null;
                 form.is_auto_open = is_auto_open;
                 form.is_join_form = is_join_form;
+                form.is_stopped = is_auto_open ? true : existingForm.is_stopped
                 form.is_auto_close = is_auto_close;
                 form.open_at = open_at ? new Date(open_at) : null as any;
                 form.close_at = close_at ? new Date(close_at) : null as any;
@@ -382,6 +396,7 @@ export class FormsService {
                     is_auto_open,
                     is_auto_close,
                     is_join_form,
+                    is_stopped: is_auto_open ? true : false,
                     open_at: open_at ? new Date(open_at) : null,
                     close_at: close_at ? new Date(close_at) : null,
                     field_count: Number(field_count),
@@ -431,7 +446,7 @@ export class FormsService {
             for (const cf of checkboxFields) {
                 const cfData: DeepPartial<Checkbox_fields> = {
                     index: Number(cf.index),
-                    label: cf.label,
+                    title: cf.title,
                     description: cf.description ?? null,
                     choice_count: Number(cf.choice_count),
                     is_required: cf.is_required,
@@ -479,6 +494,16 @@ export class FormsService {
                 where: { id: savedForm.id },
                 relations: ['fields', 'checkboxFields', 'checkboxFields.checkbox_field_choices', 'milestone', 'notifications']
             });
+        }).then(result => {
+            if (result) {
+                this.formsGateway.formSaved({
+                    formId: result.id,
+                    classId,
+                    milestoneId: milestoneId ?? null,
+                    isNew: !formId
+                })
+            }
+            return result
         });
     }
 
@@ -541,6 +566,10 @@ export class FormsService {
         const softDeleteIds = softDeleteForms.map(f => f.id);
         const hardDeleteIds = filterFormIds.filter(id => !softDeleteIds.includes(id));
 
+        // Lấy classId từ 1 form để emit socket
+        const sampleForm = await this.formRepo.findOne({ where: { id: filterFormIds[0] }, relations: ['class'] });
+        const classId = sampleForm?.class?.id;
+
         // 3. Perform Deletion in Transaction
         return await this.dataSource.transaction(async (manager) => {
             if (softDeleteIds.length > 0) {
@@ -556,6 +585,9 @@ export class FormsService {
                 soft_deleted: softDeleteIds,
                 hard_deleted: hardDeleteIds
             };
+        }).then(result => {
+            if (classId) this.formsGateway.formDeleted({ formIds: result.deleted_ids, classId })
+            return result
         });
     }
 
@@ -670,5 +702,24 @@ export class FormsService {
                 hard_deleted: hardDeleteIds
             };
         });
+    }
+
+    async toggleStop(body: ToggleStopDTO, req: Request | any) {
+        const { formId, classId } = body
+        const client = req.userData
+
+        if (!isUUID(formId) || !isUUID(classId)) throw new BadRequestException("Invalid data")
+
+        const member = await this.classMemberRepo.findOne({ where: { user: { id: client.id }, class: { id: classId } } })
+        if (!member && client.role !== Role.UNIADMIN) throw new ForbiddenException("Access denied")
+
+        const form = await this.formRepo.findOne({ where: { id: formId, class: { id: classId } } })
+        if (!form) throw new NotFoundException("Form not found")
+
+        await this.formRepo.update(formId, { is_stopped: !form.is_stopped })
+
+        this.formsGateway.toggleStop({ formId, classId, is_stopped: !form.is_stopped })
+
+        return { formId, classId, is_stopped: !form.is_stopped }
     }
 }

@@ -16,7 +16,7 @@ export class Checkbox_fields {
     index : number
     
     @Column({ type: 'varchar' })
-    label : string 
+    title : string 
     
     @Column({ type: 'varchar', nullable: true, default: null })
     description : string | null

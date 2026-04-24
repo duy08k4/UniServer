@@ -12,10 +12,12 @@ import { ClassesModule } from "./modules/classes/classes.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { ProgressModule } from "./modules/progress/progress.module";
 import { FormsModule } from "./modules/forms/forms.module";
-import { ScoreForms } from "./entities/score_forms.en";
 import { ScoreFormsModule } from "./modules/scoreforms/scoreforms.module";
 import { TopicsModule } from "./modules/topics/topics.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { SubmissionsModule } from "./modules/submissions/submissions.module";
+import { ScheduleModule } from "@nestjs/schedule";
+import { TasksModule } from "./modules/tasks/tasks.module";
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
       load: [databaseConfig, supabaseConfig],
       envFilePath: '.env'
     }),
+
+    ScheduleModule.forRoot(),
 
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
@@ -35,7 +39,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
       inject: [ConfigService]
     }),
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreForms, ScoreFormsModule, TopicsModule, NotificationsModule
+    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreFormsModule, TopicsModule, NotificationsModule, SubmissionsModule, TasksModule
   ],
   controllers: [],
   providers: []

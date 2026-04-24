@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiConflictResponse, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { ProgressService } from "./progress.service";
 import { RoleGuard } from "../auth/role.guard";
 import { AuthGuard } from "../auth/auth.guard";
@@ -403,6 +403,26 @@ export class ProgressController {
                             created_at: "2026-04-06T14:49:40.574Z",
                             update_at: "2026-04-06T14:49:40.574Z"
                         }
+                    ],
+                    notifications: [
+                        {
+                            id: "e260c365-e871-4cce-88e7-2147812d86da",
+                            title: "Thông báo mới",
+                            body: "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Đây là nội dung thông báo về giai đoạn đăng ký đề tài.\"}]}]}",
+                            created_at: "2026-04-23T03:14:54.145Z",
+                            updated_at: "2026-04-23T03:14:54.145Z",
+                            createdBy: {
+                                id: "d5105d88-d54c-463f-a24e-52c92921dde2",
+                                full_name: "Nguyen Van A",
+                                email: "duytran.290804@gmail.com",
+                                classMember: [
+                                    {
+                                        id: "ab9a389d-4039-4705-8b60-5b5a9c797456",
+                                        role: "roomadmin"
+                                    }
+                                ]
+                            }
+                        }
                     ]
                 }
             }
@@ -456,6 +476,7 @@ export class ProgressController {
     })
     @ApiResponse({ status: 400, description: 'Data is invalid' })
     @ApiResponse({ status: 403, description: 'Access denied' })
+    @ApiConflictResponse({ description: "A process with only one project registration milestone." })
 
     async createNewMilestone(@Body() milestones: NewMilestoneDTO, @Req() req: Request) {
         return this.progressService.createNewMilestone(milestones, req)
@@ -476,7 +497,7 @@ export class ProgressController {
     @Delete('milestone/remove')
     @Roles(MainRole.UNIADMIN, MainRole.USER)
     @ApiQuery({
-        name: 'ids', 
+        name: 'ids',
         type: [String],
         required: true,
         explode: true
