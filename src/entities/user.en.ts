@@ -11,6 +11,7 @@ import { ScoreFormCells } from "./score_form_cells.en";
 import { Submissions } from "./submissions.en";
 import { ClassMembers } from "./class_members.en";
 import { Topics } from "./topics.en";
+import { CommitteeMembers } from "./committee_members.en";
 
 @Entity('users')
 export class Users {
@@ -80,4 +81,7 @@ export class Users {
 
     @OneToMany(() => Topics, (topic) => topic.supervisor)
     supervisedTopics: Topics[]
+
+    @OneToMany(() => CommitteeMembers, (member) => member.user, { cascade: true })
+    committeeMembers: CommitteeMembers[]
 }

@@ -16,6 +16,7 @@ import { ScoreFormsModule } from "./modules/scoreforms/scoreforms.module";
 import { TopicsModule } from "./modules/topics/topics.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { SubmissionsModule } from "./modules/submissions/submissions.module";
+import { CommitteesModule } from "./modules/committees/committees.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { TasksModule } from "./modules/tasks/tasks.module";
 
@@ -39,7 +40,7 @@ import { TasksModule } from "./modules/tasks/tasks.module";
       inject: [ConfigService]
     }),
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreFormsModule, TopicsModule, NotificationsModule, SubmissionsModule, TasksModule
+    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreFormsModule, TopicsModule, NotificationsModule, SubmissionsModule, CommitteesModule, TasksModule
   ],
   controllers: [],
   providers: []

@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
 import { Transform, Type } from "class-transformer"
 import { IsArray, IsBoolean, IsDate, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateIf, ValidateNested } from "class-validator"
-import { ScoreForm_Type } from "src/enums/enums"
+import { ColumnAllowedRole, ColumnType, ScoreForm_Type } from "src/enums/enums"
 
 export class ScoreFormsPaginationDTO {
     @ApiPropertyOptional()
@@ -60,6 +60,16 @@ export class UpdateScoreFormColumnDTO {
     @IsOptional()
     @IsString()
     formula_content?: string
+
+    @ApiPropertyOptional({ enum: ColumnAllowedRole })
+    @IsOptional()
+    @IsEnum(ColumnAllowedRole)
+    allowed_role?: ColumnAllowedRole
+
+    @ApiPropertyOptional({ enum: ColumnType, default: ColumnType.NORMAL })
+    @IsOptional()
+    @IsEnum(ColumnType)
+    column_type?: ColumnType
 
     @ApiPropertyOptional()
     @IsOptional()

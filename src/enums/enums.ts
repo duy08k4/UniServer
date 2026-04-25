@@ -76,3 +76,29 @@ export enum PriorityCase {
   C_HAVE = "could_have",
   W_HAVE = "won't_have"
 }
+
+export enum CommitteeRole {
+  CHAIRMAN = "chairman",
+  REVIEWER = "reviewer",
+  MEMBER = "member",
+  SECRETARY = "secretary",
+}
+
+export enum ColumnAllowedRole {
+  ROOMADMIN = "roomadmin",
+  LECTURER = "lecturer",
+  CHAIRMAN = "chairman",
+  REVIEWER = "reviewer",
+  MEMBER = "member",
+}
+
+export enum ColumnType {
+  NORMAL = "normal",
+  COMPONENT = "component",
+  SUMMARY = "summary",
+}
+
+export enum ColumnLabel {
+  LAST_NAME = "last_name",   // Họ lót
+  FIRST_NAME = "first_name", // Tên
+}

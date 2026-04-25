@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Post, Query, Req, UseGuards, Param } from "@nestjs/common";
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { ScoreFormsService } from "./scoreforms.service";
 import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO } from "./scoreforms.dto";
@@ -203,6 +203,34 @@ export class ScoreFormsController {
         return this.scoreformsService.hardDeleteScoreForms(body, req)
     }
 
+    // Get rows + cells for a score form
+    @Get('rows')
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    @ApiOkResponse({ description: 'Returns rows with cells for a score form' })
+    async getScoreFormRows(@Query('scoreFormId') scoreFormId: string, @Req() req: Request) {
+        return this.scoreformsService.getScoreFormRows(scoreFormId, req)
+    }
+
     // Remove column and row
 
+    // Update cell
+    @Post('cell')
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    @ApiOkResponse({ description: 'Cell updated successfully' })
+    @ApiForbiddenResponse({ description: 'Permission denied or column has formula' })
+    async updateCell(
+        @Body() body: { scoreFormId: string, rowId: string, columnId: string, value: number },
+        @Req() req: Request
+    ) {
+        return this.scoreformsService.updateCell(body.scoreFormId, body.rowId, body.columnId, body.value, req)
+    }
+
+    // Get final scores
+    @Get('final-score/:classId')
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    @ApiOkResponse({ description: 'Returns final scores for all students' })
+    @ApiForbiddenResponse({ description: 'You are not in this class' })
+    async getFinalScores(@Param('classId') classId: string, @Req() req: Request) {
+        return this.scoreformsService.getFinalScores(classId, req)
+    }
 }

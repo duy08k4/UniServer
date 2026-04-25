@@ -13,9 +13,10 @@ import { ClassMembers } from "src/entities/class_members.en";
 import { GlobalGateway } from "../socket/socketGlobal.gateway";
 import { Submissions } from "src/entities/submissions.en";
 import { ScoreFormCells } from "src/entities/score_form_cells.en";
+import { ScoreFormsModule } from "../scoreforms/scoreforms.module";
 
 @Module({
-    imports: [AuthModule, TypeOrmModule.forFeature([Users, UseCasePermission, Classes, ClassMembers, Submissions, ScoreFormCells])],
+    imports: [AuthModule, ScoreFormsModule, TypeOrmModule.forFeature([Users, UseCasePermission, Classes, ClassMembers, Submissions, ScoreFormCells])],
     controllers: [ClassesController],
     providers: [ClassesService, ClassGateway, GlobalGateway],
     exports: []

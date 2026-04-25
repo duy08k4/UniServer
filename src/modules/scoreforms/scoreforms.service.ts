@@ -1,45 +1,107 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO } from "./scoreforms.dto";
-import { MainRole, RoomRole } from "src/enums/enums";
+import { ColumnAllowedRole, ColumnLabel, ColumnType, MainRole, RoomRole, ScoreForm_Type } from "src/enums/enums";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ClassMembers } from "src/entities/class_members.en";
 import { ScoreForms } from "src/entities/score_forms.en";
 import { ScoreFormColumns } from "src/entities/score_form_columns.en";
-import { DataSource, In, Repository } from "typeorm";
+import { ScoreFormCells } from "src/entities/score_form_cells.en";
+import { ScoreFormRows } from "src/entities/score_form_rows.en";
+import { Topics } from "src/entities/topics.en";
+import { CommitteeMembers } from "src/entities/committee_members.en";
+import { DataSource, DeepPartial, In, Repository } from "typeorm";
+import { FormulaHelper } from "./formula.helper";
+import { isUUID } from "class-validator";
+import { ScoreFormsGateway } from "./scoreforms.gateway";
 
 @Injectable()
 export class ScoreFormsService {
     constructor(
         private readonly dataSource: DataSource,
+        private readonly scoreFormGateway: ScoreFormsGateway,
         @InjectRepository(ClassMembers)
         private readonly classMemberRepo: Repository<ClassMembers>,
         @InjectRepository(ScoreForms)
         private readonly scoreFormRepo: Repository<ScoreForms>,
+        @InjectRepository(ScoreFormColumns)
+        private readonly scoreFormColumnRepo: Repository<ScoreFormColumns>,
+        @InjectRepository(ScoreFormCells)
+        private readonly scoreFormCellRepo: Repository<ScoreFormCells>,
+        @InjectRepository(ScoreFormRows)
+        private readonly scoreFormRowRepo: Repository<ScoreFormRows>,
+        @InjectRepository(Topics)
+        private readonly topicRepo: Repository<Topics>,
+        @InjectRepository(CommitteeMembers)
+        private readonly committeeMemberRepo: Repository<CommitteeMembers>,
     ) { }
+
+    // Tách full_name thành họ lót và tên
+    private splitName(fullName: string) {
+        const parts = fullName.trim().split(' ')
+        const firstName = parts.at(-1) ?? ''
+        const lastName = parts.slice(0, -1).join(' ')
+        return { firstName, lastName }
+    }
+
+    // Tạo rows còn thiếu cho các SV đã được duyệt vào lớp
+    async syncMissingRows(scoreFormId: string, classId: string) {
+        const scoreForm = await this.scoreFormRepo.findOne({ where: { id: scoreFormId } })
+        if (!scoreForm) return
+
+        const nameCols = await this.scoreFormColumnRepo.find({
+            where: { scoreForm: { id: scoreFormId }, column_label: In([ColumnLabel.LAST_NAME, ColumnLabel.FIRST_NAME]) }
+        })
+        const lastNameCol = nameCols.find(c => c.column_label === ColumnLabel.LAST_NAME)
+        const firstNameCol = nameCols.find(c => c.column_label === ColumnLabel.FIRST_NAME)
+
+        const students = await this.classMemberRepo.find({
+            where: { class: { id: classId }, role: RoomRole.STUDENT, roomadmin_approved: true },
+            relations: { user: true }
+        })
+
+        const existingRows = await this.scoreFormRowRepo.find({
+            where: { scoreForm: { id: scoreFormId } },
+            relations: { student: true }
+        })
+        const existingStudentIds = new Set(existingRows.map(r => r.student.id))
+
+        const missingStudents = students.filter(m => !existingStudentIds.has(m.user.id))
+        if (!missingStudents.length) return
+
+        const nextIndex = existingRows.length
+
+        for (let i = 0; i < missingStudents.length; i++) {
+            const user = missingStudents[i].user
+            const { firstName, lastName } = this.splitName(user.full_name)
+
+            const row = await this.scoreFormRowRepo.save({
+                index: nextIndex + i,
+                student: { id: user.id },
+                scoreForm: { id: scoreFormId }
+            })
+
+            const cells: any[] = []
+            if (lastNameCol) cells.push({ value: lastName, row: { id: row.id }, column: { id: lastNameCol.id }, score_form: { id: scoreFormId } })
+            if (firstNameCol) cells.push({ value: firstName, row: { id: row.id }, column: { id: firstNameCol.id }, score_form: { id: scoreFormId } })
+            if (cells.length) await this.scoreFormCellRepo.insert(cells)
+        }
+    }
 
     // Get score-form (pagination)
     async scoreFormsPagination(query: ScoreFormsPaginationDTO, req: Request | any) {
         const { classId, page, size, search, is_deleted, is_stopped } = query
-
-        if (!page || !size) throw new BadRequestException("Invalid data")
-
         const client = req.userData
 
         if (client.role !== MainRole.UNIADMIN) {
             if (!classId) throw new BadRequestException("Class ID is required")
-
-            const isRoomadmin = await this.classMemberRepo.findOne({
-                where: {
-                    class: { id: classId },
-                    user: { id: client.id },
-                    role: RoomRole.ROOMADMIN
-                }
+            const member = await this.classMemberRepo.findOne({
+                where: { class: { id: classId }, user: { id: client.id } }
             })
-            if (!isRoomadmin) throw new ForbiddenException("Access denied")
+            if (!member) throw new ForbiddenException("Access denied")
         }
 
-        const pageNum = parseInt(page)
-        const sizeNum = parseInt(size)
+        const pageNum = parseInt(page as any) || 1
+        const sizeNum = parseInt(size as any) || 10
 
         const qb = this.scoreFormRepo.createQueryBuilder('sf')
             .leftJoin('sf.class', 'class')
@@ -49,25 +111,20 @@ export class ScoreFormsService {
                 'class.id', 'class.label',
                 'createdBy.id', 'createdBy.full_name', 'createdBy.email'
             ])
+            .where('sf.is_deleted = :is_deleted', { is_deleted: is_deleted ?? false })
             .skip((pageNum - 1) * sizeNum)
             .take(sizeNum)
             .orderBy('sf.created_at', 'DESC')
 
         if (classId) qb.andWhere('class.id = :classId', { classId })
         if (search) qb.andWhere('(sf.label ILIKE :search OR class.label ILIKE :search)', { search: `%${search}%` })
-        if (is_deleted !== undefined) qb.andWhere('sf.is_deleted = :is_deleted', { is_deleted })
         if (is_stopped !== undefined) qb.andWhere('sf.is_stopped = :is_stopped', { is_stopped })
 
         const [data, total] = await qb.getManyAndCount()
 
         return {
             data,
-            pagination: {
-                total,
-                page: pageNum,
-                size: sizeNum,
-                totalPages: Math.ceil(total / sizeNum)
-            }
+            pagination: { total, page: pageNum, size: sizeNum, totalPages: Math.ceil(total / sizeNum) }
         }
     }
 
@@ -92,161 +149,301 @@ export class ScoreFormsService {
 
         const client = req.userData
         if (client.role !== MainRole.UNIADMIN) {
-            const isRoomadmin = await this.classMemberRepo.findOne({
-                where: {
-                    class: { id: scoreForm.class.id },
-                    user: { id: client.id },
-                    role: RoomRole.ROOMADMIN
-                }
+            const member = await this.classMemberRepo.findOne({
+                where: { class: { id: scoreForm.class.id }, user: { id: client.id } }
             })
-            if (!isRoomadmin) throw new ForbiddenException("Access denied")
+            if (!member) throw new ForbiddenException("Access denied")
         }
 
         return scoreForm
     }
 
-    // Update score-form (create new and update)
+    // Update score-form
     async updateScoreForm(body: UpdateScoreFormDTO, req: Request | any) {
-        const {
-            classId,
-            id,
-            score_form_type,
-            label,
-            description,
-            field_count,
-            is_auto_open,
-            is_auto_close,
-            is_deleted,
-            is_stopped,
-            open_at,
-            close_at,
-            columns
-        } = body
-
+        const { classId, id, score_form_type, label, description, field_count, is_auto_open, is_auto_close, is_deleted, is_stopped, open_at, close_at, columns } = body
         if (!classId) throw new BadRequestException("Class ID is required")
 
-        // --- Authorization --- (Only admin user can create and update score form)
         const client = req.userData
-
         if (client.role !== MainRole.UNIADMIN) {
             const isRoomadmin = await this.classMemberRepo.findOne({
-                where: {
-                    class: { id: classId },
-                    user: { id: client.id },
-                    role: RoomRole.ROOMADMIN
-                }
+                where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN }
             })
-
             if (!isRoomadmin) throw new ForbiddenException("Only UniAdmin or RoomAdmin can create and update score form")
         }
 
-        // --- Update ---
+        let updatedForm: ScoreForms | null = null;
+        let oldStoppedState: boolean | undefined;
+
         if (id) {
-            const scoreForm = await this.scoreFormRepo.findOne({
-                where: { id, class: { id: classId } }
-            })
+            const scoreForm = await this.scoreFormRepo.findOne({ where: { id, class: { id: classId } } })
             if (!scoreForm) throw new NotFoundException("Score form not found")
+            oldStoppedState = scoreForm.is_stopped;
 
-            return await this.dataSource.transaction(async (manager) => {
-                Object.assign(scoreForm, {
-                    score_form_type, label, description,
-                    field_count: parseInt(field_count),
-                    is_auto_open, is_auto_close, is_deleted, is_stopped,
-                    open_at, close_at
-                })
+            updatedForm = await this.dataSource.transaction(async (manager) => {
+                Object.assign(scoreForm, { score_form_type, label, description, field_count: parseInt(field_count), is_auto_open, is_auto_close, is_deleted, is_stopped, open_at: is_auto_open ? open_at : null, close_at: is_auto_close ? close_at : null })
 
-                // Query chỉ lấy id để tính toDelete
-                const existingColIds = (await manager.find(ScoreFormColumns, {
-                    where: { scoreForm: { id } },
-                    select: ['id']
-                })).map(c => c.id)
-
+                const existingCols = await manager.find(ScoreFormColumns, { where: { scoreForm: { id } }, select: ['id', 'label', 'formula_content', 'column_label'] })
+                const existingColIds = existingCols.map(c => c.id)
                 const incomingIds = columns.filter(c => c.id).map(c => c.id) as string[]
-                const toDelete = existingColIds.filter(cid => !incomingIds.includes(cid))
+                const toDelete = existingColIds.filter(cid => !incomingIds.includes(cid) && !existingCols.find(c => c.id === cid)?.column_label)
+
+                for (const colId of toDelete) {
+                    const { isReferenced, referencedBy } = FormulaHelper.isColumnReferenced(colId, existingCols)
+                    if (isReferenced) throw new BadRequestException(`Không thể xóa cột vì đang dùng trong: ${referencedBy.join(', ')}`)
+                }
                 if (toDelete.length) await manager.delete(ScoreFormColumns, { id: In(toDelete) })
+
+                for (const col of columns) {
+                    if (col.formula_content) {
+                        const colsForVal = existingCols.filter(c => !toDelete.includes(c.id)).map(c => {
+                            const inc = columns.find(ic => ic.id === c.id)
+                            return inc ? { ...c, formula_content: inc.formula_content || null } : c
+                        })
+                        FormulaHelper.detectCircularDependency(col.id || 'new-column', col.formula_content, colsForVal)
+                    }
+                }
 
                 const newCols = columns.filter(c => !c.id)
                 const updatedCols = columns.filter(c => c.id)
 
-                if (newCols.length) await manager.insert(ScoreFormColumns, newCols.map((col, i) => ({
-                    label: col.label,
-                    formula_content: col.formula_content ?? null,
-                    index: col.index ? parseInt(col.index) : i,
-                    scoreForm: { id },
-                })))
-
-                if (updatedCols.length) await Promise.all(
-                    updatedCols.map((col, i) => manager.update(ScoreFormColumns, col.id, {
-                        label: col.label,
-                        formula_content: col.formula_content ?? null,
-                        index: col.index ? parseInt(col.index) : i,
-                    }))
-                )
+                if (newCols.length) await manager.insert(ScoreFormColumns, newCols.map((col, i) => ({ label: col.label, formula_content: col.formula_content ?? null, allowed_role: col.allowed_role ?? null, column_type: col.column_type ?? ColumnType.NORMAL, index: col.index ? parseInt(col.index) : i, scoreForm: { id } })))
+                if (updatedCols.length) await Promise.all(updatedCols.map((col, i) => manager.update(ScoreFormColumns, col.id, { label: col.label, formula_content: col.formula_content ?? null, allowed_role: col.allowed_role ?? null, column_type: col.column_type ?? ColumnType.NORMAL, index: col.index ? parseInt(col.index) : i })))
 
                 await manager.save(ScoreForms, scoreForm)
                 return manager.findOne(ScoreForms, { where: { id }, relations: ['columns'] })
             })
+        } else {
+            updatedForm = await this.dataSource.transaction(async (manager) => {
+                const scoreForm = manager.create(ScoreForms, { score_form_type, label, description, field_count: parseInt(field_count), is_auto_open, is_auto_close, is_deleted, is_stopped, open_at: is_auto_open ? open_at : null, close_at: is_auto_close ? close_at : null, class: { id: classId }, createdBy: { id: client.id } } as DeepPartial<ScoreForms>)
+                const saved = await manager.save(ScoreForms, scoreForm)
+
+                for (const col of columns) {
+                    if (col.formula_content) {
+                        FormulaHelper.detectCircularDependency('new-column', col.formula_content, columns.filter(c => c !== col).map(c => ({ id: c.id || 'temp', label: c.label, formula_content: c.formula_content || null })))
+                    }
+                }
+
+                const insertedCols = await manager.insert(ScoreFormColumns, [
+                    { label: 'Họ lót', index: 0, column_label: ColumnLabel.LAST_NAME, column_type: ColumnType.NORMAL, scoreForm: { id: saved.id } },
+                    { label: 'Tên', index: 1, column_label: ColumnLabel.FIRST_NAME, column_type: ColumnType.NORMAL, scoreForm: { id: saved.id } },
+                ])
+                const lastNameColId = insertedCols.identifiers[0].id
+                const firstNameColId = insertedCols.identifiers[1].id
+
+                if (columns.length) await manager.insert(ScoreFormColumns, columns.map((col, i) => ({ label: col.label, formula_content: col.formula_content ?? null, allowed_role: col.allowed_role ?? null, column_type: col.column_type ?? ColumnType.NORMAL, index: i + 2, scoreForm: { id: saved.id } })))
+
+                const students = await manager.find(ClassMembers, { where: { class: { id: classId }, role: RoomRole.STUDENT, roomadmin_approved: true }, relations: { user: true } })
+                for (let i = 0; i < students.length; i++) {
+                    const user = students[i].user
+                    const { firstName, lastName } = this.splitName(user.full_name)
+                    const row = await manager.save(ScoreFormRows, { index: i, student: { id: user.id }, scoreForm: { id: saved.id } })
+                    await manager.insert(ScoreFormCells, [
+                        { value: lastName, row: { id: row.id }, column: { id: lastNameColId }, score_form: { id: saved.id } },
+                        { value: firstName, row: { id: row.id }, column: { id: firstNameColId }, score_form: { id: saved.id } },
+                    ])
+                }
+                return saved
+            })
         }
 
-        // --- Create ---
-        return await this.dataSource.transaction(async (manager) => {
-            const scoreForm = manager.create(ScoreForms, {
-                score_form_type, label, description,
-                field_count: parseInt(field_count),
-                is_auto_open, is_auto_close, is_deleted, is_stopped,
-                open_at, close_at,
-                class: { id: classId },
-                createdBy: { id: client.id },
-            })
-            const saved = await manager.save(ScoreForms, scoreForm)
-
-            if (columns.length) await manager.insert(ScoreFormColumns, columns.map((col, i) => ({
-                label: col.label,
-                formula_content: col.formula_content ?? null,
-                index: col.index ? parseInt(col.index) : i,
-                scoreForm: { id: saved.id },
-            })))
-
-            return saved
-        })
+        if (id && oldStoppedState !== is_stopped) {
+            this.scoreFormGateway.toggleStop(id, is_stopped);
+        }
+        this.scoreFormGateway.scoreFormSaved(updatedForm!.id);
+        return updatedForm;
     }
 
-    // Remove score-form (single or multi)
     private async authorizeRemove(ids: string[], client: any) {
-        const scoreForms = await this.scoreFormRepo.find({
-            where: { id: In(ids) },
-            relations: ['class']
-        })
-
+        const scoreForms = await this.scoreFormRepo.find({ where: { id: In(ids) }, relations: ['class'] })
         if (scoreForms.length !== ids.length) throw new NotFoundException("One or more score forms not found")
-
         if (client.role !== MainRole.UNIADMIN) {
             const classIds = [...new Set(scoreForms.map(sf => sf.class.id))]
             for (const classId of classIds) {
-                const isRoomadmin = await this.classMemberRepo.findOne({
-                    where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN }
-                })
+                const isRoomadmin = await this.classMemberRepo.findOne({ where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN } })
                 if (!isRoomadmin) throw new ForbiddenException("Access denied")
             }
         }
-
         return scoreForms
     }
 
     async softDeleteScoreForms(body: RemoveScoreFormsDTO, req: Request | any) {
-        const { ids } = body
-        await this.authorizeRemove(ids, req.userData)
-        await this.scoreFormRepo.update({ id: In(ids) }, { is_deleted: true })
+        await this.authorizeRemove(body.ids, req.userData)
+        await this.scoreFormRepo.update({ id: In(body.ids) }, { is_deleted: true })
+        this.scoreFormGateway.scoreFormDeleted(body.ids);
         return { message: "Soft deleted successfully" }
     }
 
     async hardDeleteScoreForms(body: RemoveScoreFormsDTO, req: Request | any) {
-        const { ids } = body
-        await this.authorizeRemove(ids, req.userData)
-        await this.scoreFormRepo.delete({ id: In(ids) })
+        await this.authorizeRemove(body.ids, req.userData)
+        await this.scoreFormRepo.delete({ id: In(body.ids) })
+        this.scoreFormGateway.scoreFormDeleted(body.ids);
         return { message: "Deleted successfully" }
     }
 
-    // Remove column and row
+    async getScoreFormRows(scoreFormId: string, req: Request | any) {
+        if (!isUUID(scoreFormId)) throw new BadRequestException("Invalid scoreFormId")
+        const scoreForm = await this.scoreFormRepo.findOne({ where: { id: scoreFormId }, relations: { class: true } })
+        if (!scoreForm) throw new NotFoundException("Score form not found")
 
+        const client = req.userData
+        let memberRole = RoomRole.STUDENT
+
+        if (client.role !== MainRole.UNIADMIN) {
+            const member = await this.classMemberRepo.findOne({ where: { class: { id: scoreForm.class.id }, user: { id: client.id } } })
+            if (!member) throw new ForbiddenException("Access denied")
+            memberRole = member.role as RoomRole
+        } else {
+            memberRole = RoomRole.ROOMADMIN
+        }
+
+        if (memberRole !== RoomRole.STUDENT) await this.syncMissingRows(scoreFormId, scoreForm.class.id)
+
+        const where: any = { scoreForm: { id: scoreFormId } }
+        if (memberRole === RoomRole.STUDENT) where.student = { id: client.id }
+
+        return this.scoreFormRowRepo.find({
+            where,
+            relations: { student: true, cells: { column: true, updatedBy: true } },
+            select: {
+                id: true, index: true, updated_at: true,
+                student: { id: true, full_name: true, email: true },
+                cells: { id: true, value: true, updated_at: true, column: { id: true }, updatedBy: { id: true, full_name: true } }
+            },
+            order: { index: 'ASC' }
+        })
+    }
+
+    async updateCell(scoreFormId: string, rowId: string, columnId: string, value: number, req: Request | any) {
+        if (!isUUID(scoreFormId) || !isUUID(rowId) || !isUUID(columnId)) throw new BadRequestException("Invalid data")
+        const client = req.userData
+        
+        return await this.dataSource.transaction(async (manager) => {
+            const column = await manager.findOne(ScoreFormColumns, { where: { id: columnId, scoreForm: { id: scoreFormId } }, relations: { scoreForm: { class: true } } })
+            if (!column) throw new NotFoundException("Column not found")
+            if (column.formula_content) throw new ForbiddenException("Cannot manually update column with formula")
+            
+            const sf = column.scoreForm;
+            const now = new Date();
+            if (sf.is_stopped) throw new ForbiddenException("Score form is closed");
+            if (sf.is_auto_open && sf.open_at && sf.open_at > now) throw new ForbiddenException("Score form has not opened yet");
+            if (sf.is_auto_close && sf.close_at && sf.close_at < now) throw new ForbiddenException("Score form has already closed");
+
+            await this.checkCellPermission(column, client, sf.class.id, rowId)
+
+            let cell = await manager.findOne(ScoreFormCells, { where: { row: { id: rowId }, column: { id: columnId } } })
+            if (cell) {
+                cell.value = value.toString()
+                cell.updatedBy = { id: client.id } as any
+                await manager.save(cell)
+            } else {
+                cell = manager.create(ScoreFormCells, { value: value.toString(), row: { id: rowId }, column: { id: columnId }, updatedBy: { id: client.id } })
+                await manager.save(cell)
+            }
+            await this.recalculateFormulaCellsInternal(manager, scoreFormId, rowId)
+            
+            this.scoreFormGateway.cellUpdated(scoreFormId, cell);
+            return { message: "Cell updated successfully" }
+        })
+    }
+
+    private async checkCellPermission(column: ScoreFormColumns, client: any, classId: string, rowId: string) {
+        const { allowed_role, scoreForm } = column
+        const classMember = await this.classMemberRepo.findOne({ where: { class: { id: classId }, user: { id: client.id } } })
+        if (!classMember) throw new ForbiddenException("You are not in this class")
+        if (classMember.role === RoomRole.STUDENT) throw new ForbiddenException("Students cannot edit scores")
+
+        if (!allowed_role || allowed_role === ColumnAllowedRole.LECTURER) {
+            if (classMember.role === RoomRole.LECTURER || classMember.role === RoomRole.ROOMADMIN) return
+        }
+
+        if (allowed_role === ColumnAllowedRole.ROOMADMIN) {
+            if (classMember.role === RoomRole.ROOMADMIN) return
+            throw new ForbiddenException("Only ROOMADMIN can edit this column")
+        }
+
+        if (allowed_role && [ColumnAllowedRole.CHAIRMAN, ColumnAllowedRole.REVIEWER, ColumnAllowedRole.MEMBER].includes(allowed_role)) {
+            const committeeMember = await this.committeeMemberRepo.findOne({
+                where: { committee: { class: { id: classId } }, user: { id: client.id }, role: allowed_role as any }
+            })
+            if (!committeeMember) throw new ForbiddenException(`Only ${allowed_role} can edit this column`)
+            return
+        }
+
+        if (scoreForm.score_form_type === ScoreForm_Type.SUPERVISOR_SCORE) {
+            const row = await this.scoreFormRowRepo.findOne({ where: { id: rowId }, relations: { student: true } })
+            if (!row) throw new NotFoundException("Row not found")
+            const topic = await this.topicRepo.findOne({ where: { student: { id: row.student.id }, milestone: { progress: { class: { id: classId } } } }, relations: { supervisor: true } })
+            if (!topic || topic.supervisor?.id !== client.id) throw new ForbiddenException("Only supervisor can edit this student's score")
+        }
+    }
+
+    private async recalculateFormulaCells(scoreFormId: string, rowId: string) {
+        return await this.dataSource.transaction(manager => this.recalculateFormulaCellsInternal(manager, scoreFormId, rowId))
+    }
+
+    private async recalculateFormulaCellsInternal(manager: any, scoreFormId: string, rowId: string) {
+        const formulaColumns = await manager.find(ScoreFormColumns, { where: { scoreForm: { id: scoreFormId } }, order: { index: 'ASC' } })
+        const columnsWithFormula = formulaColumns.filter(c => c.formula_content)
+        if (columnsWithFormula.length === 0) return
+
+        const cells = await manager.find(ScoreFormCells, { where: { row: { id: rowId } }, relations: { column: true } })
+        const cellValueMap = new Map<string, number>()
+        cells.forEach(cell => cellValueMap.set(cell.column.id, parseFloat(cell.value) || 0))
+
+        for (const column of columnsWithFormula) {
+            try {
+                const refs = FormulaHelper.extractColumnReferences(column.formula_content || '')
+                const valueMap = new Map<string, number>()
+                refs.forEach(ref => valueMap.set(ref, cellValueMap.get(ref) ?? 0))
+                const evaluable = FormulaHelper.replaceReferences(column.formula_content || '', valueMap)
+                const result = FormulaHelper.safeEval(evaluable)
+
+                const existingCell = cells.find(c => c.column.id === column.id)
+                if (existingCell) {
+                    existingCell.value = result.toString()
+                    await manager.save(existingCell)
+                } else {
+                    const newCell = manager.create(ScoreFormCells, { value: result.toString(), row: { id: rowId }, column: { id: column.id } })
+                    await manager.save(newCell)
+                }
+                cellValueMap.set(column.id, result)
+            } catch (error) {
+                console.error(`Error calculating formula for column ${column.label}:`, error.message)
+            }
+        }
+    }
+
+    async getFinalScores(classId: string, req: Request | any) {
+        if (!isUUID(classId)) throw new BadRequestException("Invalid class ID")
+        const client = req.userData
+        const classMember = await this.classMemberRepo.findOne({ where: { class: { id: classId }, user: { id: client.id } } })
+        if (!classMember && client.role !== MainRole.UNIADMIN) throw new ForbiddenException("You are not in this class")
+
+        const students = await this.classMemberRepo.find({ where: { class: { id: classId }, role: RoomRole.STUDENT }, relations: { user: true }, select: { user: { id: true, full_name: true } } })
+        const supervisorForm = await this.scoreFormRepo.findOne({ where: { class: { id: classId }, score_form_type: ScoreForm_Type.SUPERVISOR_SCORE }, relations: { columns: true, rows: { student: true, cells: { column: true } } } })
+        const committeeForm = await this.scoreFormRepo.findOne({ where: { class: { id: classId }, score_form_type: ScoreForm_Type.COMMITTEE_SCORE }, relations: { columns: true, rows: { student: true, cells: { column: true } } } })
+        const bonusForm = await this.scoreFormRepo.findOne({ where: { class: { id: classId }, score_form_type: ScoreForm_Type.BONUS_SCORE }, relations: { columns: true, rows: { student: true, cells: { column: true } } } })
+
+        const results: { studentId: string; studentName: string; supervisorScore: number | null; committeeScore: number | null; bonusScore: number; finalScore: number | null }[] = []
+        for (const student of students) {
+            const supervisorScore = this.getSummaryScore(supervisorForm, student.user.id)
+            const committeeScore = this.getSummaryScore(committeeForm, student.user.id)
+            const bonusScore = this.getSummaryScore(bonusForm, student.user.id) || 0
+            let finalScore: number | null = null
+            if (supervisorScore !== null && committeeScore !== null) finalScore = (supervisorScore * 0.4) + (committeeScore * 0.6) + bonusScore
+            results.push({ studentId: student.user.id, studentName: student.user.full_name, supervisorScore, committeeScore, bonusScore, finalScore })
+        }
+        return results
+    }
+
+    private getSummaryScore(scoreForm: ScoreForms | null, studentId: string): number | null {
+        if (!scoreForm) return null
+        const summaryColumn = scoreForm.columns.find(c => c.column_type === ColumnType.SUMMARY)
+        if (!summaryColumn) return null
+        const row = scoreForm.rows.find(r => r.student.id === studentId)
+        if (!row) return null
+        const cell = row.cells.find(c => c.column.id === summaryColumn.id)
+        return cell ? parseFloat(cell.value) : null
+    }
 }
+

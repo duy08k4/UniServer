@@ -11,6 +11,7 @@ import { MainRole, Role, RoomRole } from "src/enums/enums";
 import { GlobalGateway } from "../socket/socketGlobal.gateway";
 import { Submissions } from "src/entities/submissions.en";
 import { ScoreFormCells } from "src/entities/score_form_cells.en";
+import { ScoreFormsService } from "../scoreforms/scoreforms.service";
 
 @Injectable()
 export class ClassesService {
@@ -18,6 +19,7 @@ export class ClassesService {
         private dataSource: DataSource,
         private readonly classGateway: ClassGateway,
         private readonly globalGateway: GlobalGateway,
+        private readonly scoreFormsService: ScoreFormsService,
         @InjectRepository(Users)
         private readonly userRepo: Repository<Users>,
         @InjectRepository(Classes)
@@ -840,6 +842,17 @@ export class ClassesService {
                     memberId,
                     role: getUser.role
                 })
+
+                // Khi SV được duyệt vào lớp → sync rows cho tất cả scoreform trong lớp
+                if (roomadmin_approved === true && memberExistance.role === RoomRole.STUDENT) {
+                    const scoreForms = await this.dataSource.query(
+                        `SELECT id FROM score_forms WHERE class = $1 AND is_deleted = false`,
+                        [classId]
+                    )
+                    for (const sf of scoreForms) {
+                        await this.scoreFormsService.syncMissingRows(sf.id, classId)
+                    }
+                }
             }
         }
 

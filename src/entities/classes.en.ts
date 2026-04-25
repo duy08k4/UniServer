@@ -5,6 +5,7 @@ import { Progresses } from "./progresses.en";
 import { Notifications } from "./notifications.en";
 import { Forms } from "./forms.en";
 import { ScoreForms } from "./score_forms.en";
+import { Committees } from "./committees.en";
 
 @Entity('classes')
 export class Classes {
@@ -63,4 +64,7 @@ export class Classes {
 
     @OneToMany(() => ScoreForms, (scoreForm) => scoreForm.class, { cascade: true })
     score_forms: ScoreForms[]
+
+    @OneToMany(() => Committees, (committee) => committee.class, { cascade: true })
+    committees: Committees[]
 }
