@@ -56,7 +56,7 @@ export enum TopicStatus {
   INVITED = "invited",                         // Đã mời GVHD, chờ phản hồi
   SUPERVISOR_REJECTED = "supervisor_rejected", // GVHD từ chối
   SUPERVISOR_ACCEPTED = "supervisor_accepted", // GVHD đồng ý, chờ SV nộp đề cương
-  OUTLINE_PENDING = "outline_pending",         // SV đã nộp đề cương, chờ UniAdmin duyệt
+  OUTLINE_PENDING = "outline_pending",         // SV đã nộp đề cương, chờ RoomAdmin duyệt
   OUTLINE_REJECTED = "outline_rejected",       // UniAdmin yêu cầu chỉnh sửa
   APPROVED = "approved",                       // Hoàn tất, được tham gia milestone tiếp theo
 }

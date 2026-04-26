@@ -4,7 +4,7 @@ import { Repository } from "typeorm";
 import { Topics } from "src/entities/topics.en";
 import { ClassMembers } from "src/entities/class_members.en";
 import { Milestones } from "src/entities/milestones.en";
-import { Role, RoomRole, TopicStatus } from "src/enums/enums";
+import { RoomRole, TopicStatus } from "src/enums/enums";
 import { CreateTopicDTO, InviteSupervisorDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
 import { isUUID } from "class-validator";
 import { createClient } from "@supabase/supabase-js";
@@ -178,16 +178,27 @@ export class TopicsService {
         return this.getOneTopic(id, req)
     }
 
-    // PATCH — UniAdmin duyệt đề cương
+    // PATCH — RoomAdmin duyệt đề cương
     async reviewTopic(id: string, dto: ReviewTopicDTO, req: Request | any) {
         const { approve, rejection_note } = dto
-        const clientRole = req.role
+        const client = req.userData
 
-        if (clientRole !== Role.UNIADMIN) throw new ForbiddenException("Access denied")
         if (!isUUID(id)) throw new BadRequestException("Data is invalid")
 
-        const topic = await this.topics.findOne({ where: { id } })
+        const topic = await this.topics.findOne({
+            where: { id },
+            relations: { milestone: { progress: { class: true } } }
+        })
         if (!topic) throw new NotFoundException("Topic not found")
+
+        const classId = topic.milestone?.progress?.class?.id
+        if (!classId) throw new NotFoundException("Class not found")
+
+        const member = await this.classMembers.findOne({
+            where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN, is_deleted: false, is_banned: false }
+        })
+        if (!member) throw new ForbiddenException("Access denied")
+
         if (topic.status !== TopicStatus.OUTLINE_PENDING) throw new BadRequestException("Topic is not pending review")
 
         const update: any = approve
