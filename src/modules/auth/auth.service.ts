@@ -7,7 +7,6 @@ import { ConfigService } from "@nestjs/config";
 // Dto
 import { RequireResetPassword, SignInDTO, SignUpDTO, UpdatePassword } from "./auth.dto";
 import { Users } from "src/entities/user.en";
-import { UseCasePermission } from "src/entities/use_case_permissions.en";
 
 @Injectable()
 export class AuthService {
@@ -17,8 +16,6 @@ export class AuthService {
         private configService: ConfigService,
         @InjectRepository(Users)
         private usersRepository: Repository<Users>,
-        @InjectRepository(UseCasePermission)
-        private permissionRepository: Repository<UseCasePermission>
     ) {
         const supabaseURL = this.configService.get('SUPABASE_URL')
         const supabaseKEY = this.configService.get('SUPABASE_ANON_KEY')

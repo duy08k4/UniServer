@@ -6,7 +6,6 @@ import { AuthModule } from "../auth/auth.module";
 
 // Entities
 import { Users } from "src/entities/user.en";
-import { UseCasePermission } from "src/entities/use_case_permissions.en";
 import { Classes } from "src/entities/classes.en";
 import { ClassGateway } from "./class.gateway";
 import { ClassMembers } from "src/entities/class_members.en";
@@ -16,7 +15,7 @@ import { ScoreFormCells } from "src/entities/score_form_cells.en";
 import { ScoreFormsModule } from "../scoreforms/scoreforms.module";
 
 @Module({
-    imports: [AuthModule, ScoreFormsModule, TypeOrmModule.forFeature([Users, UseCasePermission, Classes, ClassMembers, Submissions, ScoreFormCells])],
+    imports: [AuthModule, ScoreFormsModule, TypeOrmModule.forFeature([Users, Classes, ClassMembers, Submissions, ScoreFormCells])],
     controllers: [ClassesController],
     providers: [ClassesService, ClassGateway, GlobalGateway],
     exports: []

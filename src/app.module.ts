@@ -9,7 +9,6 @@ import supabaseConfig from "./config/supabase"
 // Modules
 import { AuthModule } from "./modules/auth/auth.module";
 import { ClassesModule } from "./modules/classes/classes.module";
-import { AdminModule } from "./modules/admin/admin.module";
 import { ProgressModule } from "./modules/progress/progress.module";
 import { FormsModule } from "./modules/forms/forms.module";
 import { ScoreFormsModule } from "./modules/scoreforms/scoreforms.module";
@@ -40,7 +39,7 @@ import { TasksModule } from "./modules/tasks/tasks.module";
       inject: [ConfigService]
     }),
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreFormsModule, TopicsModule, NotificationsModule, SubmissionsModule, CommitteesModule, TasksModule
+    AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreFormsModule, TopicsModule, NotificationsModule, SubmissionsModule, CommitteesModule, TasksModule
   ],
   controllers: [],
   providers: []

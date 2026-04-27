@@ -70,12 +70,6 @@ export enum ScoreForm_Type {
   OTHERS = "others" // Khác
 }
 
-export enum PriorityCase {
-  M_HAVE = "must_have",
-  S_HAVE = "should_have",
-  C_HAVE = "could_have",
-  W_HAVE = "won't_have"
-}
 
 export enum CommitteeRole {
   CHAIRMAN = "chairman",

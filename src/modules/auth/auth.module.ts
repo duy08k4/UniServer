@@ -9,10 +9,9 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 // Entities
 import { Users } from "src/entities/user.en";
-import { UseCasePermission } from "src/entities/use_case_permissions.en";
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Users, UseCasePermission])],
+    imports: [TypeOrmModule.forFeature([Users])],
     controllers: [AuthController],
     providers: [AuthService],
     exports: [AuthService, TypeOrmModule]
