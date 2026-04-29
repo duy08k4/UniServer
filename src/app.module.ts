@@ -39,7 +39,7 @@ import { TasksModule } from "./modules/tasks/tasks.module";
       inject: [ConfigService]
     }),
     TypeOrmModule.forFeature([]),
-    AuthModule, ClassesModule, ProgressModule, FormsModule, ScoreFormsModule, TopicsModule, NotificationsModule, SubmissionsModule, CommitteesModule, TasksModule
+    AuthModule, ClassesModule, NotificationsModule, ProgressModule, TopicsModule, FormsModule, ScoreFormsModule, SubmissionsModule, CommitteesModule, TasksModule
   ],
   controllers: [],
   providers: []

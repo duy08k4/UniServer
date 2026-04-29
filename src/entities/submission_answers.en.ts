@@ -15,6 +15,9 @@ export class SubmissionAnswers {
     @Column({ type: 'enum', enum: Field_Type, default: Field_Type.STRING })
     input_type: Field_Type
 
+    @Column({ type: 'varchar', nullable: true })
+    file_name: string | null
+
     // Relations
     @ManyToOne(() => Fields, (field) => field.answer, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'field' })

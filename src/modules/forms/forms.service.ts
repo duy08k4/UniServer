@@ -135,14 +135,17 @@ export class FormsService {
             - The client is a member
             - There is the form's existance in the class
         */
-        const isMember = await this.classRepo.findOne({
+
+        const isMember = await this.classMemberRepo.findOne({
             where: {
-                id: classId,
-                forms: {
-                    id: formId
+                user: {
+                    id: client.id
                 },
-                members: {
-                    user: { id: client.id }
+                class: {
+                    id: classId,
+                    forms: {
+                        id: formId
+                    }
                 }
             }
         })
@@ -187,7 +190,9 @@ export class FormsService {
                 id: formId,
                 class: {
                     id: classId
-                }
+                },
+                fields: client.role !== Role.UNIADMIN && isMember.role !== RoomRole.ROOMADMIN ? { is_deleted: false } : undefined,
+                checkboxFields: client.role !== Role.UNIADMIN && isMember.role !== RoomRole.ROOMADMIN ? { is_deleted: false } : undefined
             }
         })
 
@@ -367,7 +372,6 @@ export class FormsService {
         }
 
         // --- Transaction ---
-        let isStopped =  open_at ? new Date(open_at) > new Date() : false
         return await this.dataSource.transaction(async (manager) => {
             let form: Forms;
 

@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger"
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
 import { Transform, Type } from "class-transformer"
 import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from "class-validator"
 
@@ -154,7 +154,8 @@ export class MilestoneDTO {
     @IsBoolean()
     is_registration_milestone: boolean
 
-    @ApiProperty({ example: 'Giai đoạn khởi tạo dự án' })
+    @ApiPropertyOptional({ example: 'Giai đoạn khởi tạo dự án' })
+    @IsOptional()
     @IsString()
     description: string;
 

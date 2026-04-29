@@ -19,6 +19,11 @@ export class UpdateAnswerDTO {
     @IsString()
     body?: string
 
+    @ApiPropertyOptional({ example: " 'string' | null " })
+    @IsOptional()
+    @IsString()
+    file_name?: string | null
+
     @ApiProperty()
     @IsNotEmpty()
     @IsEnum(Field_Type)
@@ -98,4 +103,18 @@ export class SubmissionPaginationDTO {
     @IsOptional()
     @IsEnum(SubmissionStatus)
     status?: SubmissionStatus
+}
+
+export class GetSubmissionDetailDto {
+  @ApiProperty({ description: 'Class ID' })
+  @IsUUID()
+  classId: string;
+  
+  @ApiProperty({ description: 'Form ID' })
+  @IsUUID()
+  formId: string;
+
+  @ApiProperty({ description: 'Submission ID' })
+  @IsUUID()
+  userId: string
 }
