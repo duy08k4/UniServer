@@ -253,6 +253,23 @@ export class ScoreFormsService {
         return updatedForm;
     }
 
+    async toggleStop(body: { id: string; classId: string }, req: Request | any) {
+        const { id, classId } = body
+        const client = req.userData
+        if (client.role !== MainRole.UNIADMIN) {
+            const isRoomadmin = await this.classMemberRepo.findOne({
+                where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN }
+            })
+            if (!isRoomadmin) throw new ForbiddenException("Only UniAdmin or RoomAdmin can toggle stop")
+        }
+        const sf = await this.scoreFormRepo.findOne({ where: { id, class: { id: classId } } })
+        if (!sf) throw new NotFoundException("Score form not found")
+        sf.is_stopped = !sf.is_stopped
+        await this.scoreFormRepo.save(sf)
+        this.scoreFormGateway.toggleStop(id, sf.is_stopped)
+        return { is_stopped: sf.is_stopped }
+    }
+
     private async authorizeRemove(ids: string[], client: any) {
         const scoreForms = await this.scoreFormRepo.find({ where: { id: In(ids) }, relations: ['class'] })
         if (scoreForms.length !== ids.length) throw new NotFoundException("One or more score forms not found")
@@ -339,8 +356,6 @@ export class ScoreFormsService {
                 cell = manager.create(ScoreFormCells, { value: value.toString(), row: { id: rowId }, column: { id: columnId }, updatedBy: { id: client.id } })
                 await manager.save(cell)
             }
-            await this.recalculateFormulaCellsInternal(manager, scoreFormId, rowId)
-            
             this.scoreFormGateway.cellUpdated(scoreFormId, cell);
             return { message: "Cell updated successfully" }
         })
@@ -377,73 +392,5 @@ export class ScoreFormsService {
         }
     }
 
-    private async recalculateFormulaCells(scoreFormId: string, rowId: string) {
-        return await this.dataSource.transaction(manager => this.recalculateFormulaCellsInternal(manager, scoreFormId, rowId))
-    }
-
-    private async recalculateFormulaCellsInternal(manager: any, scoreFormId: string, rowId: string) {
-        const formulaColumns = await manager.find(ScoreFormColumns, { where: { scoreForm: { id: scoreFormId } }, order: { index: 'ASC' } })
-        const columnsWithFormula = formulaColumns.filter(c => c.formula_content)
-        if (columnsWithFormula.length === 0) return
-
-        const cells = await manager.find(ScoreFormCells, { where: { row: { id: rowId } }, relations: { column: true } })
-        const cellValueMap = new Map<string, number>()
-        cells.forEach(cell => cellValueMap.set(cell.column.id, parseFloat(cell.value) || 0))
-
-        for (const column of columnsWithFormula) {
-            try {
-                const refs = FormulaHelper.extractColumnReferences(column.formula_content || '')
-                const valueMap = new Map<string, number>()
-                refs.forEach(ref => valueMap.set(ref, cellValueMap.get(ref) ?? 0))
-                const evaluable = FormulaHelper.replaceReferences(column.formula_content || '', valueMap)
-                const result = FormulaHelper.safeEval(evaluable)
-
-                const existingCell = cells.find(c => c.column.id === column.id)
-                if (existingCell) {
-                    existingCell.value = result.toString()
-                    await manager.save(existingCell)
-                } else {
-                    const newCell = manager.create(ScoreFormCells, { value: result.toString(), row: { id: rowId }, column: { id: column.id } })
-                    await manager.save(newCell)
-                }
-                cellValueMap.set(column.id, result)
-            } catch (error) {
-                console.error(`Error calculating formula for column ${column.label}:`, error.message)
-            }
-        }
-    }
-
-    async getFinalScores(classId: string, req: Request | any) {
-        if (!isUUID(classId)) throw new BadRequestException("Invalid class ID")
-        const client = req.userData
-        const classMember = await this.classMemberRepo.findOne({ where: { class: { id: classId }, user: { id: client.id } } })
-        if (!classMember && client.role !== MainRole.UNIADMIN) throw new ForbiddenException("You are not in this class")
-
-        const students = await this.classMemberRepo.find({ where: { class: { id: classId }, role: RoomRole.STUDENT }, relations: { user: true }, select: { user: { id: true, full_name: true } } })
-        const supervisorForm = await this.scoreFormRepo.findOne({ where: { class: { id: classId }, score_form_type: ScoreForm_Type.SUPERVISOR_SCORE }, relations: { columns: true, rows: { student: true, cells: { column: true } } } })
-        const committeeForm = await this.scoreFormRepo.findOne({ where: { class: { id: classId }, score_form_type: ScoreForm_Type.COMMITTEE_SCORE }, relations: { columns: true, rows: { student: true, cells: { column: true } } } })
-        const bonusForm = await this.scoreFormRepo.findOne({ where: { class: { id: classId }, score_form_type: ScoreForm_Type.BONUS_SCORE }, relations: { columns: true, rows: { student: true, cells: { column: true } } } })
-
-        const results: { studentId: string; studentName: string; supervisorScore: number | null; committeeScore: number | null; bonusScore: number; finalScore: number | null }[] = []
-        for (const student of students) {
-            const supervisorScore = this.getSummaryScore(supervisorForm, student.user.id)
-            const committeeScore = this.getSummaryScore(committeeForm, student.user.id)
-            const bonusScore = this.getSummaryScore(bonusForm, student.user.id) || 0
-            let finalScore: number | null = null
-            if (supervisorScore !== null && committeeScore !== null) finalScore = (supervisorScore * 0.4) + (committeeScore * 0.6) + bonusScore
-            results.push({ studentId: student.user.id, studentName: student.user.full_name, supervisorScore, committeeScore, bonusScore, finalScore })
-        }
-        return results
-    }
-
-    private getSummaryScore(scoreForm: ScoreForms | null, studentId: string): number | null {
-        if (!scoreForm) return null
-        const summaryColumn = scoreForm.columns.find(c => c.column_type === ColumnType.SUMMARY)
-        if (!summaryColumn) return null
-        const row = scoreForm.rows.find(r => r.student.id === studentId)
-        if (!row) return null
-        const cell = row.cells.find(c => c.column.id === summaryColumn.id)
-        return cell ? parseFloat(cell.value) : null
-    }
 }
 

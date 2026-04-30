@@ -187,3 +187,15 @@ export class RemoveScoreFormsDTO {
     @IsUUID('all', { each: true })
     ids: string[]
 }
+
+export class ToggleStopScoreFormDTO {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsUUID()
+    id: string
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsUUID()
+    classId: string
+}

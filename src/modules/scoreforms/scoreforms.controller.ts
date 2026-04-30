@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Post, Query, Req, UseGuards, Param } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards, Param } from "@nestjs/common";
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { ScoreFormsService } from "./scoreforms.service";
-import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO } from "./scoreforms.dto";
+import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO, ToggleStopScoreFormDTO } from "./scoreforms.dto";
 import { RoleGuard } from "../auth/role.guard";
 import { AuthGuard } from "../auth/auth.guard";
 import { Roles } from "src/decorators/roles.decorator";
@@ -213,6 +213,16 @@ export class ScoreFormsController {
 
     // Remove column and row
 
+    // Toggle stop
+    @Patch('toggle-stop')
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    @ApiOkResponse({ description: 'Toggled is_stopped successfully' })
+    @ApiForbiddenResponse({ description: 'Only UniAdmin or RoomAdmin can toggle stop.' })
+    @ApiNotFoundResponse({ description: 'Score form not found.' })
+    async toggleStop(@Body() body: ToggleStopScoreFormDTO, @Req() req: Request) {
+        return this.scoreformsService.toggleStop(body, req)
+    }
+
     // Update cell
     @Post('cell')
     @Roles(MainRole.UNIADMIN, MainRole.USER)
@@ -225,12 +235,4 @@ export class ScoreFormsController {
         return this.scoreformsService.updateCell(body.scoreFormId, body.rowId, body.columnId, body.value, req)
     }
 
-    // Get final scores
-    @Get('final-score/:classId')
-    @Roles(MainRole.UNIADMIN, MainRole.USER)
-    @ApiOkResponse({ description: 'Returns final scores for all students' })
-    @ApiForbiddenResponse({ description: 'You are not in this class' })
-    async getFinalScores(@Param('classId') classId: string, @Req() req: Request) {
-        return this.scoreformsService.getFinalScores(classId, req)
-    }
 }

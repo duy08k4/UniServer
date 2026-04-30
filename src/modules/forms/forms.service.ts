@@ -53,9 +53,8 @@ export class FormsService {
         if (client.role !== Role.UNIADMIN) {
             if (!classId) throw new ForbiddenException("Class not found")
 
-            const isRoomadmin = await this.classMemberRepo.findOne({
+            const isMember = await this.classMemberRepo.findOne({
                 where: {
-                    role: RoomRole.ROOMADMIN,
                     user: {
                         id: client.id
                     },
@@ -65,7 +64,7 @@ export class FormsService {
                 }
             })
 
-            if (!isRoomadmin) throw new ForbiddenException("Access denied")
+            if (!isMember) throw new ForbiddenException("Access denied")
         }
 
         const pageNum = parseInt(page);
@@ -82,7 +81,7 @@ export class FormsService {
             ])
             .skip(skip)
             .take(sizeNum)
-            .orderBy('form.label', 'ASC');
+            .orderBy('form.created_at', 'ASC');
 
         if (classId) {
             queryBuilder.andWhere('class.id = :classId', { classId });
@@ -199,89 +198,6 @@ export class FormsService {
         if (!formData) throw new NotFoundException("The form does not exist")
 
         return formData
-    }
-
-    // Get submission
-    async getSubmission(query: GetFormDetailDTO, req: Request | any) {
-        const { classId, formId } = query
-
-        if (!classId || !formId) throw new BadRequestException("Invalid data")
-
-        // Check client's role
-        const client = req.userData
-
-        if (client.role !== Role.UNIADMIN) {
-            /*
-                Check 3 conditions:
-                - The class's existance
-                - The client's role in the class
-                - The form's existance
-            */
-            const isRoomadmin = await this.classRepo.findOne({
-                where: {
-                    id: classId,
-                    members: {
-                        user: { id: client.id },
-                        role: RoomRole.ROOMADMIN
-                    },
-                    forms: {
-                        id: formId
-                    }
-                }
-            })
-
-            if (!isRoomadmin) throw new ForbiddenException("Access denied")
-        }
-
-        // Get data
-        const submission = await this.submissionRepo.find({
-            select: {
-                form: {
-                    id: true,
-                    label: true,
-                    field_count: true,
-                    update_at: true,
-                    created_at: true,
-                    createdBy: {
-                        id: true,
-                        full_name: true,
-                        email: true
-                    }
-                },
-                user: {
-                    id: true,
-                    full_name: true,
-                    email: true,
-                    role: true
-                },
-                checkboxes: {
-                    id: true,
-                    fieldChoices: { id: true }
-                }
-            },
-            relations: {
-                form: {
-                    createdBy: true
-                },
-                user: true,
-                answers: true,
-                checkboxes: {
-                    fieldChoices: true
-                }
-            },
-            where: {
-                form: {
-                    id: formId,
-                    class: {
-                        id: classId
-                    }
-                }
-            }
-        })
-
-        if (submission.length === 0) throw new NotFoundException("No submissions have been received yet")
-
-        return submission
     }
 
     // Create new form
