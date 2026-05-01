@@ -1,9 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { ApiBadRequestResponse, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RoleGuard } from "../auth/role.guard";
 import { AuthGuard } from "../auth/auth.guard";
 import { SubmissionService } from "./submissions.service";
-import { GetSubmissionDetailDto, SubmissionPaginationDTO, UpdateSubmissionDTO } from "./submissions.dto";
+import { GetSubmissionDetailDto, SubmissionPaginationDTO, UpdateSubmissionDTO, UpdateSubmissionStatusDTO } from "./submissions.dto";
 import { MainRole } from "@app/enums/enums";
 import { Roles } from "@app/decorators/roles.decorator";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -273,6 +273,14 @@ export class SubmissionController {
     @ApiNotFoundResponse({ description: 'Submission not found.' })
     getSubmissionDetail(@Query() query: GetSubmissionDetailDto, @Req() req: Request) {
         return this.submissionService.getSubmissionDetail(query, req)
+    }
+
+    // Update submission status (bulk)
+    @Patch('status')
+    @ApiOperation({ summary: 'Update status of multiple submissions (accept/reject)' })
+    @ApiOkResponse({ schema: { example: { updated: 3 } } })
+    updateSubmissionStatus(@Body() dto: UpdateSubmissionStatusDTO, @Req() req: Request) {
+        return this.submissionService.updateSubmissionStatus(dto, req)
     }
 
     // Remove submission

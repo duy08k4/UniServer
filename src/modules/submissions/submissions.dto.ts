@@ -118,3 +118,14 @@ export class GetSubmissionDetailDto {
   @IsUUID()
   userId: string
 }
+
+export class UpdateSubmissionStatusDTO {
+    @ApiProperty({ type: [String], description: 'List of submission IDs' })
+    @IsArray()
+    @IsUUID(undefined, { each: true })
+    ids: string[]
+
+    @ApiProperty({ enum: [SubmissionStatus.ACCEPT, SubmissionStatus.REJECT] })
+    @IsEnum(SubmissionStatus)
+    status: SubmissionStatus
+}

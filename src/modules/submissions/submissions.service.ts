@@ -12,15 +12,17 @@ import { Users } from "src/entities/user.en";
 import { ClassMembers } from "src/entities/class_members.en";
 import { Topics } from "src/entities/topics.en";
 import { Milestones } from "src/entities/milestones.en";
-import { UpdateSubmissionDTO, SubmissionPaginationDTO, GetSubmissionDetailDto } from "./submissions.dto";
-import { Field_Type, MainRole, Role, RoomRole, TopicStatus } from "src/enums/enums";
+import { UpdateSubmissionDTO, SubmissionPaginationDTO, GetSubmissionDetailDto, UpdateSubmissionStatusDTO } from "./submissions.dto";
+import { Field_Type, MainRole, Role, RoomRole, SubmissionStatus, TopicStatus } from "src/enums/enums";
 import { createClient } from "@supabase/supabase-js";
 import { ConfigService } from "@nestjs/config";
+import { MailService } from "../notifications/mail.service";
 
 @Injectable()
 export class SubmissionService {
     constructor(
         private readonly configService: ConfigService,
+        private readonly mailService: MailService,
         private readonly dataSource: DataSource,
         @InjectRepository(Forms) private readonly formRepo: Repository<Forms>,
         @InjectRepository(Fields) private readonly fieldRepo: Repository<Fields>,
@@ -155,6 +157,53 @@ export class SubmissionService {
         }
     }
 
+    // Update submission status (bulk)
+    async updateSubmissionStatus(dto: UpdateSubmissionStatusDTO, req: Request | any) {
+        const { ids, status } = dto
+        const client = req.userData
+
+        if ((status as SubmissionStatus) === SubmissionStatus.PENDING || (status as SubmissionStatus) === SubmissionStatus.RECEIVE) {
+            throw new BadRequestException('Cannot set status to pending or receive')
+        }
+
+        // Validate all submissions belong to a class managed by this RA
+        const submissions = await this.submissionRepo.find({
+            where: { id: In(ids) },
+            relations: { form: { class: { members: { user: true } } }, user: true },
+            select: {
+                id: true,
+                user: { id: true, full_name: true, email: true },
+                form: {
+                    id: true, label: true,
+                    class: { id: true, members: { role: true, user: { id: true } } }
+                }
+            }
+        })
+
+        if (submissions.length !== ids.length) throw new NotFoundException('One or more submissions not found')
+
+        for (const sub of submissions) {
+            const isRA = sub.form.class.members.some(
+                m => m.role === RoomRole.ROOMADMIN && m.user.id === client.id
+            )
+            if (!isRA) throw new ForbiddenException('Access denied')
+        }
+
+        await this.submissionRepo.update({ id: In(ids) }, { status })
+
+        // Send mail to each submission owner
+        const statusLabel = status === SubmissionStatus.ACCEPT ? 'được duyệt ✅' : 'bị từ chối ❌'
+        for (const sub of submissions) {
+            this.mailService.sendBulk(
+                [sub.user.email],
+                `Kết quả biểu mẫu: ${sub.form.label}`,
+                `<p>Xin chào <b>${sub.user.full_name}</b>,</p><p>Câu trả lời của bạn cho biểu mẫu <b>${sub.form.label}</b> đã <b>${statusLabel}</b>.</p>`
+            )
+        }
+
+        return { updated: ids.length }
+    }
+
     // Delete submission
     async deleteSubmission(id: string, req: Request | any) {
         const client = req.userData
@@ -231,7 +280,7 @@ export class SubmissionService {
                 }
 
             } else {
-                if(isRoomadmin.class.id !== classId) throw new ForbiddenException('Access denied')
+                if(!isRoomadmin) throw new ForbiddenException('Access denied')
             }
         }
 
