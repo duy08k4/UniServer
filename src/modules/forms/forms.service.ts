@@ -145,7 +145,7 @@ export class FormsService {
             }
         })
 
-        if (!isMember) {
+        if (!isMember && client.role !== Role.UNIADMIN) {
             // Allow access if this is a join form (user not yet a member)
             const isJoinForm = await this.formRepo.findOne({
                 where: { id: formId, class: { id: classId }, is_join_form: true }
