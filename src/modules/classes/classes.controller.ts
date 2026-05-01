@@ -5,7 +5,7 @@ import { ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/s
 import { Roles } from "src/decorators/roles.decorator";
 
 // DTO
-import { ApprovedClassDTO, CreateClassDTO, GetClassDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
+import { ApprovedClassDTO, CreateClassDTO, GetClassDTO, GetJoinFormDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
 import { MainRole, Role } from "src/enums/enums";
 
 // Guard
@@ -209,6 +209,16 @@ export class ClassesController {
     @Roles(MainRole.UNIADMIN, MainRole.USER)
     async getMember(@Query() query: GetMembersDTO, @Req() req: Request) {
         return await this.classesService.getMember(query, req);
+    }
+
+    // Get join form of a class
+    @Get('join-form')
+    @ApiOperation({ summary: 'Get join form info by join code' })
+    @ApiQuery({ name: 'joinCode', type: String })
+    @ApiResponse({ status: 200, description: 'Returns classId and formId (formId is null if no join form required)' })
+    @Roles(MainRole.UNIADMIN, MainRole.USER)
+    async getJoinForm(@Query() query: GetJoinFormDTO) {
+        return await this.classesService.getJoinForm(query)
     }
 
     // Create a new class

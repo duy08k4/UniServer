@@ -137,19 +137,21 @@ export class FormsService {
 
         const isMember = await this.classMemberRepo.findOne({
             where: {
-                user: {
-                    id: client.id
-                },
+                user: { id: client.id },
                 class: {
                     id: classId,
-                    forms: {
-                        id: formId
-                    }
+                    forms: { id: formId }
                 }
             }
         })
 
-        if (!isMember) throw new ForbiddenException("Access denied")
+        if (!isMember) {
+            // Allow access if this is a join form (user not yet a member)
+            const isJoinForm = await this.formRepo.findOne({
+                where: { id: formId, class: { id: classId }, is_join_form: true }
+            })
+            if (!isJoinForm) throw new ForbiddenException("Access denied")
+        }
 
         // Get data
         const formData = await this.formRepo.findOne({
@@ -190,8 +192,8 @@ export class FormsService {
                 class: {
                     id: classId
                 },
-                fields: client.role !== Role.UNIADMIN && isMember.role !== RoomRole.ROOMADMIN ? { is_deleted: false } : undefined,
-                checkboxFields: client.role !== Role.UNIADMIN && isMember.role !== RoomRole.ROOMADMIN ? { is_deleted: false } : undefined
+                fields: client.role !== Role.UNIADMIN && isMember && isMember.role !== RoomRole.ROOMADMIN ? { is_deleted: false } : undefined,
+                checkboxFields: client.role !== Role.UNIADMIN && isMember && isMember.role !== RoomRole.ROOMADMIN ? { is_deleted: false } : undefined
             }
         })
 
@@ -328,6 +330,9 @@ export class FormsService {
             }
 
             const savedForm = await manager.save(Forms, form);
+
+            // --- Sync required_join_form on class ---
+            await manager.update(Classes, classId, { required_join_form: !!is_join_form });
 
             // --- Sync Fields & CheckboxFields ---
 

@@ -14,8 +14,10 @@ import { Submissions } from "src/entities/submissions.en";
 import { ScoreFormCells } from "src/entities/score_form_cells.en";
 import { ScoreFormsModule } from "../scoreforms/scoreforms.module";
 
+import { Forms } from "src/entities/forms.en";
+
 @Module({
-    imports: [AuthModule, ScoreFormsModule, TypeOrmModule.forFeature([Users, Classes, ClassMembers, Submissions, ScoreFormCells])],
+    imports: [AuthModule, ScoreFormsModule, TypeOrmModule.forFeature([Users, Classes, ClassMembers, Submissions, ScoreFormCells, Forms])],
     controllers: [ClassesController],
     providers: [ClassesService, ClassGateway, GlobalGateway],
     exports: []

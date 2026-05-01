@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
-import { CreateClassDTO, GetClassDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
+import { CreateClassDTO, GetClassDTO, GetJoinFormDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Users } from "src/entities/user.en";
 import { Brackets, DataSource, ILike, In, Or, Raw, Repository } from "typeorm";
@@ -11,6 +11,7 @@ import { MainRole, Role, RoomRole } from "src/enums/enums";
 import { GlobalGateway } from "../socket/socketGlobal.gateway";
 import { Submissions } from "src/entities/submissions.en";
 import { ScoreFormCells } from "src/entities/score_form_cells.en";
+import { Forms } from "src/entities/forms.en";
 import { ScoreFormsService } from "../scoreforms/scoreforms.service";
 
 @Injectable()
@@ -29,8 +30,26 @@ export class ClassesService {
         @InjectRepository(Submissions)
         private readonly submissionRepo: Repository<Submissions>,
         @InjectRepository(ScoreFormCells)
-        private readonly scoreCellRepo: Repository<ScoreFormCells>
+        private readonly scoreCellRepo: Repository<ScoreFormCells>,
+        @InjectRepository(Forms)
+        private readonly formRepo: Repository<Forms>
     ) { }
+
+    // Get join form
+    async getJoinForm(query: GetJoinFormDTO) {
+        const { joinCode } = query
+
+        const cls = await this.classRepo.findOne({ where: { join_code: joinCode } })
+        if (!cls) throw new NotFoundException("Class not found")
+
+        if (!cls.required_join_form) return { classId: cls.id, formId: null }
+
+        const form = await this.formRepo.findOne({
+            where: { class: { id: cls.id }, is_join_form: true, is_deleted: false }
+        })
+
+        return { classId: cls.id, formId: form?.id ?? null }
+    }
 
     // Get class
     async getClass(query: GetClassDTO, req: Request | any) {

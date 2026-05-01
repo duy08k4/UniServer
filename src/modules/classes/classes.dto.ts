@@ -266,3 +266,10 @@ export class updateMemberInClassDTO {
     @IsBoolean()
     is_banned?: boolean
 }
+
+export class GetJoinFormDTO {
+    @ApiProperty({ description: 'Join code of the class' })
+    @IsNotEmpty()
+    @IsString()
+    joinCode: string
+}

@@ -125,8 +125,13 @@ export class SubmissionService {
         if (status) qb.andWhere('sub.status = :status', { status })
 
         // Non-admin users can only see their own submissions
-        if (client.role !== Role.UNIADMIN && client.role !== RoomRole.ROOMADMIN) {
-            qb.andWhere('user.id = :userId', { userId: client.id })
+        if (client.role !== Role.UNIADMIN) {
+            const isRoomAdmin = await this.classMemberRepo.findOne({
+                where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN }
+            })
+            if (!isRoomAdmin) {
+                qb.andWhere('user.id = :userId', { userId: client.id })
+            }
         }
 
         if (search) {
@@ -218,7 +223,12 @@ export class SubmissionService {
                     where: { class: { id: classId }, user: { id: client.id } }
                 })
 
-                if (!isMember) throw new ForbiddenException('Access denied')
+                if (!isMember) {
+                    const isJoinForm = await this.formRepo.findOne({
+                        where: { id: formId, class: { id: classId }, is_join_form: true }
+                    })
+                    if (!isJoinForm) throw new ForbiddenException('Access denied')
+                }
 
             } else {
                 if(isRoomadmin.class.id !== classId) throw new ForbiddenException('Access denied')
@@ -243,6 +253,7 @@ export class SubmissionService {
                 is_stopped: true,
                 is_auto_open: true,
                 is_auto_close: true,
+                is_join_form: true,
                 open_at: true,
                 close_at: true,
                 class: { id: true },
@@ -256,7 +267,7 @@ export class SubmissionService {
         const isMember = await this.classMemberRepo.findOne({
             where: { class: { id: form.class.id }, user: { id: userId }, is_deleted: false, is_banned: false }
         })
-        if (!isMember) throw new ForbiddenException({ errorCode: 'NOT_CLASS_MEMBER', message: 'Bạn không phải là thành viên của lớp này' })
+        if (!isMember && !form.is_join_form) throw new ForbiddenException({ errorCode: 'NOT_CLASS_MEMBER', message: 'Bạn không phải là thành viên của lớp này' })
 
         // Check Form Status & Time
         if (form.is_stopped) throw new BadRequestException({ errorCode: 'FORM_STOPPED', message: 'Form đã đóng' })
