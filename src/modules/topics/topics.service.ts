@@ -199,7 +199,7 @@ export class TopicsService {
         })
         if (!member) throw new ForbiddenException("Access denied")
 
-        if (topic.status !== TopicStatus.OUTLINE_PENDING) throw new BadRequestException("Topic is not pending review")
+        if (topic.status === TopicStatus.SUPERVISOR_REJECTED || topic.status === TopicStatus.SUPERVISOR_ACCEPTED || topic.status === TopicStatus.DRAFT ||  topic.status === TopicStatus.INVITED) throw new BadRequestException("Topic is not pending review")
 
         const update: any = approve
             ? { status: TopicStatus.APPROVED, rejection_note: null }

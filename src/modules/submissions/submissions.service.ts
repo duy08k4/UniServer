@@ -192,12 +192,57 @@ export class SubmissionService {
         await this.submissionRepo.update({ id: In(ids) }, { status })
 
         // Send mail to each submission owner
-        const statusLabel = status === SubmissionStatus.ACCEPT ? 'được duyệt ✅' : 'bị từ chối ❌'
+        const isAccepted = status === SubmissionStatus.ACCEPT
+        const accentColor = isAccepted ? '#499C40' : '#dc2626'
+        const statusLabel = isAccepted ? 'Đã được duyệt' : 'Đã bị từ chối'
+        const statusIcon = isAccepted ? '✅' : '❌'
+        const statusDesc = isAccepted
+            ? 'Câu trả lời của bạn đã được chấp nhận bởi quản lý lớp.'
+            : 'Câu trả lời của bạn đã bị từ chối. Vui lòng liên hệ quản lý lớp để biết thêm chi tiết.'
+
         for (const sub of submissions) {
+            const html = `
+<div style="background-color:#f9fafb;padding:40px 0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e5e7eb;">
+    <div style="background-color:#499C40;padding:24px;text-align:center;">
+      <h1 style="color:#ffffff;margin:0;font-size:20px;text-transform:uppercase;letter-spacing:2px;font-weight:800;">UniProject</h1>
+    </div>
+    <div style="padding:40px;">
+      <p style="color:#6b7280;font-size:12px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:1.5px;">Kết quả biểu mẫu</p>
+      <h2 style="color:#111827;font-size:22px;font-weight:800;margin:0 0 8px 0;line-height:1.3;">${sub.form.label}</h2>
+      <p style="color:#6b7280;font-size:14px;margin:0 0 24px 0;">Xin chào <b style="color:#111827;">${sub.user.full_name}</b>,</p>
+
+      <div style="background-color:${isAccepted ? '#f0fdf4' : '#fef2f2'};border:1px solid ${isAccepted ? '#bbf7d0' : '#fecaca'};border-radius:12px;padding:20px;margin-bottom:28px;text-align:center;">
+        <p style="font-size:28px;margin:0 0 8px 0;">${statusIcon}</p>
+        <p style="color:${accentColor};font-size:16px;font-weight:800;margin:0 0 6px 0;">${statusLabel}</p>
+        <p style="color:#6b7280;font-size:13px;margin:0;">${statusDesc}</p>
+      </div>
+
+      <div style="background-color:#f3f4f6;border-radius:12px;padding:20px;margin-bottom:32px;border:1px solid #e5e7eb;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:10px;width:110px;font-weight:600;">Biểu mẫu:</td>
+            <td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${sub.form.label}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;font-weight:600;">Trạng thái:</td>
+            <td style="color:${accentColor};font-size:14px;font-weight:700;">${statusLabel}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.5;">
+        Đây là email tự động từ hệ thống quản lý đồ án <b>UniProject</b>.<br>
+        Bạn nhận được email này vì bạn là thành viên của lớp học.
+      </p>
+    </div>
+  </div>
+</div>`
             this.mailService.sendBulk(
                 [sub.user.email],
-                `Kết quả biểu mẫu: ${sub.form.label}`,
-                `<p>Xin chào <b>${sub.user.full_name}</b>,</p><p>Câu trả lời của bạn cho biểu mẫu <b>${sub.form.label}</b> đã <b>${statusLabel}</b>.</p>`
+                `[UniProject] Kết quả biểu mẫu: ${sub.form.label}`,
+                html
             )
         }
 

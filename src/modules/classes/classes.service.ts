@@ -276,6 +276,12 @@ export class ClassesService {
         const ownerMember = classData.members.find(m => m.role === RoomRole.ROOMADMIN);
         const userInClass = classData.members.find(m => m.user.id === userId);
 
+        const [{ forms_count, milestones_count }] = await this.dataSource.query(`
+            SELECT
+                (SELECT COUNT(*) FROM forms WHERE class = $1 AND is_deleted = false) AS forms_count,
+                (SELECT COUNT(*) FROM milestones m JOIN progresses p ON m.progress = p.id WHERE p.class = $1 AND m.is_deleted = false) AS milestones_count
+        `, [classId])
+
         return {
             id: classData.id,
             join_code: classData.join_code,
@@ -304,7 +310,9 @@ export class ClassesService {
                 student: classData.members.filter(m => m.role === RoomRole.STUDENT && m.roomadmin_approved).length,
                 lecturer: classData.members.filter(m => m.role === RoomRole.LECTURER && m.roomadmin_approved).length,
                 committee: classData.members.filter(m => m.role === RoomRole.LECTURER && m.is_committee_member && m.roomadmin_approved).length,
-                pending: classData.members.filter(m => !m.roomadmin_approved).length
+                pending: classData.members.filter(m => !m.roomadmin_approved).length,
+                forms: Number(forms_count),
+                milestones: Number(milestones_count)
             },
             owner: ownerMember ? {
                 full_name: ownerMember.user.full_name,
