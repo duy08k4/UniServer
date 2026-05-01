@@ -234,36 +234,6 @@ export class updateMemberInClassDTO {
         return undefined;
     })
     @IsBoolean()
-    can_create_notifications?: boolean
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @Transform(({ value }) => {
-        if (value === 'true' || value === true || value === 1 || value === '1') return true;
-        if (value === 'false' || value === false || value === 0 || value === '0') return false;
-        return undefined;
-    })
-    @IsBoolean()
-    can_create_forms?: boolean
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @Transform(({ value }) => {
-        if (value === 'true' || value === true || value === 1 || value === '1') return true;
-        if (value === 'false' || value === false || value === 0 || value === '0') return false;
-        return undefined;
-    })
-    @IsBoolean()
-    can_create_score_forms?: boolean
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @Transform(({ value }) => {
-        if (value === 'true' || value === true || value === 1 || value === '1') return true;
-        if (value === 'false' || value === false || value === 0 || value === '0') return false;
-        return undefined;
-    })
-    @IsBoolean()
     is_banned?: boolean
 }
 

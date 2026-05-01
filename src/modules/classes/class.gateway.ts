@@ -18,7 +18,7 @@ export class ClassGateway {
         this.server.emit("suspend-user-from-class", data)
     }
 
-    updateMemberData(data: { memberId:string, classId: string, role: RoomRole, can_create_forms: boolean, can_create_score_forms: boolean, can_create_notifications: boolean }) {
+    updateMemberData(data: { memberId: string, classId: string, role: RoomRole }) {
         /* 
             Why is the input parameter only 'role'?
             - The client browser does not store any member data until the member page is accessed

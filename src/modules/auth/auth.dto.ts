@@ -13,6 +13,7 @@ export class SignUpDTO {
     @ApiProperty({ example: 'nguyenvana@st.hcmuaf.edu.vn', type: 'string', nullable: false })
     @IsString()
     @IsEmail()
+    @Matches(/^[a-zA-Z0-9._%+-]+@(st\.)?hcmuaf\.edu\.vn$/, { message: 'Email phải thuộc tên miền hcmuaf.edu.vn' })
     email: string
 
     @ApiProperty({ example: 'Matkhau@123', type: 'string', nullable: false })

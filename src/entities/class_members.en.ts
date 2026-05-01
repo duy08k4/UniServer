@@ -26,15 +26,6 @@ export class ClassMembers {
     @Column({ type: 'boolean', default: false })
     is_committee_member: boolean
 
-    @Column({ type: 'boolean', default: false })
-    can_create_notifications: boolean
-
-    @Column({ type: 'boolean', default: false })
-    can_create_forms: boolean
-
-    @Column({ type: 'boolean', default: false })
-    can_create_score_forms: boolean
-
     @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
     joined_at: Date
 

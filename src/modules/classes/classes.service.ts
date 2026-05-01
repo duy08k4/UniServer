@@ -440,9 +440,6 @@ export class ClassesService {
             role: RoomRole.ROOMADMIN,
             class: newClass,
             roomadmin_approved: true,
-            can_create_forms: true,
-            can_create_notifications: true,
-            can_create_score_forms: true,
             user: user
         })
 
@@ -694,9 +691,6 @@ export class ClassesService {
             await this.dataSource.transaction(async (manager) => {
                 await manager.update(ClassMembers, { id: newOwner.id, class: { id: classId } }, {
                     role: RoomRole.ROOMADMIN,
-                    can_create_forms: true,
-                    can_create_notifications: true,
-                    can_create_score_forms: true,
                     roomadmin_approved: true,
                 })
 
@@ -735,7 +729,7 @@ export class ClassesService {
     // Update member in class
     async updateMemberInClass(query: updateMemberInClassDTO, req: Request | any) {
         const clientRole = req.role
-        const { classId, memberId, role, can_create_forms, can_create_notifications, can_create_score_forms, roomadmin_approved, is_banned } = query
+        const { classId, memberId, role, roomadmin_approved, is_banned } = query
 
         if (clientRole === MainRole.USER) {
             const clientEmail = req.userData.email
@@ -765,24 +759,13 @@ export class ClassesService {
         if (role !== undefined && role !== null) dataUpdate.role = role
 
         if (role !== RoomRole.ROOMADMIN) {
-            if (can_create_forms !== undefined && can_create_forms !== null) dataUpdate.can_create_forms = can_create_forms
-            if (can_create_notifications !== undefined && can_create_notifications !== null) dataUpdate.can_create_notifications = can_create_notifications
-            if (can_create_score_forms !== undefined && can_create_score_forms !== null) dataUpdate.can_create_score_forms = can_create_score_forms
             if (roomadmin_approved !== undefined && roomadmin_approved !== null) {
-
                 if (memberExistance.roomadmin_approved === !roomadmin_approved) {
                     dataUpdate.roomadmin_approved = roomadmin_approved
                     dataUpdate.joined_at = new Date()
                 }
             }
             if (is_banned !== undefined && is_banned !== null) dataUpdate.is_banned = is_banned
-        } else {
-            dataUpdate = {
-                ...dataUpdate,
-                can_create_forms: true,
-                can_create_notifications: true,
-                can_create_score_forms: true
-            }
         }
 
         if (Object.values(dataUpdate).length === 0) throw new BadRequestException("No data for update")
@@ -796,9 +779,6 @@ export class ClassesService {
                     },
                     {
                         role: RoomRole.STUDENT,
-                        can_create_forms: false,
-                        can_create_notifications: false,
-                        can_create_score_forms: false
                     }
                 )
             }
@@ -837,9 +817,6 @@ export class ClassesService {
                 memberId,
                 classId,
                 role,
-                can_create_forms: getUser.can_create_forms,
-                can_create_notifications: getUser.can_create_notifications,
-                can_create_score_forms: getUser.can_create_score_forms
             })
         }
 
