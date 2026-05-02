@@ -28,4 +28,9 @@ export class GlobalGateway {
     updateClassStatus(data: { classId: string, approvalClass?: boolean, banned?: boolean }) {
         this.server.emit('update-class-status', data)
     }
+
+    // Force logout a user (ban or delete)
+    forceLogout(data: { userId: string, reason: 'banned' | 'deleted' }) {
+        this.server.emit('force-logout', data)
+    }
 }

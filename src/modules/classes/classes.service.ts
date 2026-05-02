@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, HttpExcepti
 import { CreateClassDTO, GetClassDTO, GetJoinFormDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Users } from "src/entities/user.en";
-import { Brackets, DataSource, ILike, In, Or, Raw, Repository } from "typeorm";
+import { DataSource, ILike, In, Raw, Repository } from "typeorm";
 import { Classes } from "src/entities/classes.en";
 import { nanoid } from "nanoid";
 import { ClassGateway } from "./class.gateway";

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO } from "./scoreforms.dto";
-import { ColumnAllowedRole, ColumnLabel, ColumnType, MainRole, RoomRole, ScoreForm_Type } from "src/enums/enums";
+import { ColumnAllowedRole, ColumnLabel, ColumnType, MainRole, RoomRole, ScoreForm_Type, SubmissionStatus } from "src/enums/enums";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ClassMembers } from "src/entities/class_members.en";
 import { ScoreForms } from "src/entities/score_forms.en";
@@ -264,10 +264,28 @@ export class ScoreFormsService {
         }
         const sf = await this.scoreFormRepo.findOne({ where: { id, class: { id: classId } } })
         if (!sf) throw new NotFoundException("Score form not found")
+        if (sf.status === SubmissionStatus.ACCEPT) throw new BadRequestException("Cannot reopen an approved score form")
         sf.is_stopped = !sf.is_stopped
+        sf.status = sf.is_stopped ? SubmissionStatus.RECEIVE : SubmissionStatus.PENDING
         await this.scoreFormRepo.save(sf)
         this.scoreFormGateway.toggleStop(id, sf.is_stopped)
         return { is_stopped: sf.is_stopped }
+    }
+
+    async approveScoreForm(body: { id: string; classId: string }, req: Request | any) {
+        const client = req.userData
+        if (client.role !== MainRole.UNIADMIN) throw new ForbiddenException("Only UniAdmin can approve score forms")
+        const sf = await this.scoreFormRepo.findOne({
+            where: { id: body.id, class: { id: body.classId } },
+            relations: { createdBy: true, class: true, milestone: true, columns: true }
+        })
+        if (!sf) throw new NotFoundException("Score form not found")
+        if (!sf.is_stopped) throw new BadRequestException("Score form must be stopped before approving")
+        if (sf.status === SubmissionStatus.ACCEPT) throw new BadRequestException("Score form already approved")
+        sf.status = SubmissionStatus.ACCEPT
+        await this.scoreFormRepo.save(sf)
+        this.scoreFormGateway.scoreFormApproved(sf.id)
+        return sf
     }
 
     private async authorizeRemove(ids: string[], client: any) {

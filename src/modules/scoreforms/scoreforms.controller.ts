@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards, Param } from "@nestjs/common";
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { ScoreFormsService } from "./scoreforms.service";
-import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO, ToggleStopScoreFormDTO } from "./scoreforms.dto";
+import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO, ToggleStopScoreFormDTO, ApproveScoreFormDTO } from "./scoreforms.dto";
 import { RoleGuard } from "../auth/role.guard";
 import { AuthGuard } from "../auth/auth.guard";
 import { Roles } from "src/decorators/roles.decorator";
@@ -221,6 +221,17 @@ export class ScoreFormsController {
     @ApiNotFoundResponse({ description: 'Score form not found.' })
     async toggleStop(@Body() body: ToggleStopScoreFormDTO, @Req() req: Request) {
         return this.scoreformsService.toggleStop(body, req)
+    }
+
+    // Approve score form (SA only)
+    @Patch('approve')
+    @Roles(MainRole.UNIADMIN)
+    @ApiOkResponse({ description: 'Score form approved successfully' })
+    @ApiForbiddenResponse({ description: 'Only UniAdmin can approve.' })
+    @ApiNotFoundResponse({ description: 'Score form not found.' })
+    @ApiBadRequestResponse({ description: 'Score form not stopped or already approved.' })
+    async approveScoreForm(@Body() body: ApproveScoreFormDTO, @Req() req: Request) {
+        return this.scoreformsService.approveScoreForm(body, req)
     }
 
     // Update cell

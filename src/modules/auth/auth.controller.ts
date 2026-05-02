@@ -7,9 +7,6 @@ import { AuthService } from "./auth.service";
 import type { Request, Response } from "express";
 import { AuthGuard } from "./auth.guard";
 
-// Enum
-import { Role } from "src/enums/enums";
-
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {

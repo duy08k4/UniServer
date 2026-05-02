@@ -199,3 +199,15 @@ export class ToggleStopScoreFormDTO {
     @IsUUID()
     classId: string
 }
+
+export class ApproveScoreFormDTO {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsUUID()
+    id: string
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsUUID()
+    classId: string
+}

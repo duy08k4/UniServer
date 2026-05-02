@@ -17,6 +17,10 @@ export class ScoreFormsGateway {
     this.server.emit('toggle-stop', { scoreFormId, is_stopped });
   }
 
+  scoreFormApproved(scoreFormId: string) {
+    this.server.emit('scoreform-approved', { scoreFormId });
+  }
+
   scoreFormSaved(scoreFormId: string) {
     this.server.emit('score-form-saved', { scoreFormId });
   }
