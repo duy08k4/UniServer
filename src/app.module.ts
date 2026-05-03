@@ -19,6 +19,7 @@ import { CommitteesModule } from "./modules/committees/committees.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { PublicModule } from "./modules/public/public.module";
 
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { AdminModule } from "./modules/admin/admin.module";
       inject: [ConfigService]
     }),
     TypeOrmModule.forFeature([]),
-    AdminModule, AuthModule, ClassesModule, NotificationsModule, ProgressModule, TopicsModule, FormsModule, ScoreFormsModule, SubmissionsModule, CommitteesModule, TasksModule
+    AdminModule, AuthModule, ClassesModule, NotificationsModule, ProgressModule, TopicsModule, FormsModule, ScoreFormsModule, SubmissionsModule, CommitteesModule, TasksModule, PublicModule
   ],
   controllers: [],
   providers: []
