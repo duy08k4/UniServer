@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { CLASS_LIMITS } from "src/config/class-limits";
 import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO, ToggleStopDTO } from "./forms.dto";
 import { isDate, isUUID } from "class-validator";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -306,6 +307,12 @@ export class FormsService {
                 .getOne()
 
             if (conflict) throw new ConflictException({ errorCode: 'DUPLICATE_FIELD_LABEL', message: `Nhãn "${conflict.label}" đã được sử dụng trong lớp này` })
+        }
+
+        // --- Limit check (chỉ khi tạo mới) ---
+        if (!formId) {
+            const formsCount = await this.formRepo.count({ where: { class: { id: classId }, is_deleted: false } })
+            if (formsCount >= CLASS_LIMITS.MAX_FORMS) throw new BadRequestException(`Lớp học đã đạt giới hạn biểu mẫu (${CLASS_LIMITS.MAX_FORMS})`)
         }
 
         // --- Transaction ---

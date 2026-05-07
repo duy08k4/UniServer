@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { CLASS_LIMITS } from "src/config/class-limits";
 import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO } from "./scoreforms.dto";
 import { ColumnAllowedRole, ColumnLabel, ColumnType, MainRole, RoomRole, ScoreForm_Type, SubmissionStatus } from "src/enums/enums";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -213,6 +214,9 @@ export class ScoreFormsService {
                 return manager.findOne(ScoreForms, { where: { id }, relations: ['columns'] })
             })
         } else {
+            const scoreFormsCount = await this.scoreFormRepo.count({ where: { class: { id: classId }, is_deleted: false } })
+            if (scoreFormsCount >= CLASS_LIMITS.MAX_SCORE_FORMS) throw new BadRequestException(`Lớp học đã đạt giới hạn bảng điểm (${CLASS_LIMITS.MAX_SCORE_FORMS})`)
+
             updatedForm = await this.dataSource.transaction(async (manager) => {
                 const scoreForm = manager.create(ScoreForms, { score_form_type, label, description, field_count: parseInt(field_count), is_auto_open, is_auto_close, is_deleted, is_stopped, open_at: is_auto_open ? open_at : null, close_at: is_auto_close ? close_at : null, class: { id: classId }, createdBy: { id: client.id } } as DeepPartial<ScoreForms>)
                 const saved = await manager.save(ScoreForms, scoreForm)

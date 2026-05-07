@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { CLASS_LIMITS } from "src/config/class-limits";
 import { CreateClassDTO, GetClassDTO, GetJoinFormDTO, GetMembersDTO, JoinClassDTO, RemoveClassDTO, RemoveMemberDTO, UpdateClassDTO, UpdateCommitteeDTO, updateMemberInClassDTO } from "./classes.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Users } from "src/entities/user.en";
@@ -42,13 +43,28 @@ export class ClassesService {
         const cls = await this.classRepo.findOne({ where: { join_code: joinCode } })
         if (!cls) throw new NotFoundException("Class not found")
 
-        if (!cls.required_join_form) return { classId: cls.id, formId: null }
+        const willBePending = cls.required_approval
+
+        let isFull = false
+        if (willBePending) {
+            const pendingCount = await this.classMemberRepo.count({
+                where: { class: { id: cls.id }, roomadmin_approved: false }
+            })
+            isFull = pendingCount >= CLASS_LIMITS.MAX_PENDING
+        } else {
+            const approvedCount = await this.classMemberRepo.count({
+                where: { class: { id: cls.id }, roomadmin_approved: true }
+            })
+            isFull = approvedCount >= CLASS_LIMITS.MAX_MEMBERS
+        }
+
+        if (!cls.required_join_form) return { classId: cls.id, formId: null, isFull }
 
         const form = await this.formRepo.findOne({
             where: { class: { id: cls.id }, is_join_form: true, is_deleted: false }
         })
 
-        return { classId: cls.id, formId: form?.id ?? null }
+        return { classId: cls.id, formId: form?.id ?? null, isFull }
     }
 
     // Get class
@@ -276,10 +292,11 @@ export class ClassesService {
         const ownerMember = classData.members.find(m => m.role === RoomRole.ROOMADMIN);
         const userInClass = classData.members.find(m => m.user.id === userId);
 
-        const [{ forms_count, milestones_count }] = await this.dataSource.query(`
+        const [{ forms_count, milestones_count, score_forms_count }] = await this.dataSource.query(`
             SELECT
                 (SELECT COUNT(*) FROM forms WHERE class = $1 AND is_deleted = false) AS forms_count,
-                (SELECT COUNT(*) FROM milestones m JOIN progresses p ON m.progress = p.id WHERE p.class = $1 AND m.is_deleted = false) AS milestones_count
+                (SELECT COUNT(*) FROM milestones m JOIN progresses p ON m.progress = p.id WHERE p.class = $1 AND m.is_deleted = false) AS milestones_count,
+                (SELECT COUNT(*) FROM score_forms WHERE class = $1 AND is_deleted = false) AS score_forms_count
         `, [classId])
 
         return {
@@ -312,7 +329,8 @@ export class ClassesService {
                 committee: classData.members.filter(m => m.role === RoomRole.LECTURER && m.is_committee_member && m.roomadmin_approved).length,
                 pending: classData.members.filter(m => !m.roomadmin_approved).length,
                 forms: Number(forms_count),
-                milestones: Number(milestones_count)
+                milestones: Number(milestones_count),
+                score_forms: Number(score_forms_count)
             },
             owner: ownerMember ? {
                 full_name: ownerMember.user.full_name,
@@ -539,6 +557,34 @@ export class ClassesService {
 
         const isMember = await this.classMemberRepo.findOne({ where: { user: { id: userId }, class: { join_code: joinCode } } })
         if (isMember) throw new ConflictException("User already in class")
+
+        const willBePending = classExistance.required_approval
+
+        if (willBePending) {
+            const pendingCount = await this.classMemberRepo.count({
+                where: { class: { id: classExistance.id }, roomadmin_approved: false }
+            })
+            if (pendingCount >= CLASS_LIMITS.MAX_PENDING) throw new BadRequestException("Lớp học đã đạt giới hạn số lượng yêu cầu chờ duyệt (150)")
+        } else {
+            const approvedCount = await this.classMemberRepo.count({
+                where: { class: { id: classExistance.id }, roomadmin_approved: true }
+            })
+            if (approvedCount >= CLASS_LIMITS.MAX_MEMBERS) throw new BadRequestException("Lớp học đã đạt giới hạn thành viên (150)")
+
+            if (joinRole === RoomRole.STUDENT) {
+                const studentCount = await this.classMemberRepo.count({
+                    where: { class: { id: classExistance.id }, role: RoomRole.STUDENT, roomadmin_approved: true }
+                })
+                if (studentCount >= CLASS_LIMITS.MAX_STUDENTS) throw new BadRequestException("Lớp học đã đạt giới hạn sinh viên (50)")
+            }
+
+            if (joinRole === RoomRole.LECTURER) {
+                const lecturerCount = await this.classMemberRepo.count({
+                    where: { class: { id: classExistance.id }, role: RoomRole.LECTURER, roomadmin_approved: true }
+                })
+                if (lecturerCount >= CLASS_LIMITS.MAX_LECTURERS) throw new BadRequestException("Lớp học đã đạt giới hạn giảng viên (99)")
+            }
+        }
 
         const newMember = await this.classMemberRepo.create({
             role: joinRole,
