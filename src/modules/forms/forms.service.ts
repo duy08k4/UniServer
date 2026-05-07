@@ -11,7 +11,7 @@ import { ClassMembers } from "src/entities/class_members.en";
 import { Classes } from "src/entities/classes.en";
 import { Milestones } from "src/entities/milestones.en";
 import { Notifications } from "src/entities/notifications.en";
-import { Role, RoomRole, SubmissionStatus } from "src/enums/enums";
+import { Field_Label, Role, RoomRole, SubmissionStatus } from "src/enums/enums";
 import { Users } from "src/entities/user.en";
 import { Submissions } from "src/entities/submissions.en";
 import { privateDecrypt } from "crypto";
@@ -287,6 +287,25 @@ export class FormsService {
             for (let i = 0; i < allIndices.length; i++) {
                 if (allIndices[i] !== i + 1) throw new BadRequestException("Field indices must be continuous and unique");
             }
+        }
+
+        // Check special labels are unique across all forms in the same class
+        const specialLabels = fields
+            .filter(f => f.label && f.label !== Field_Label.NULL)
+            .map(f => f.label)
+
+        if (specialLabels.length > 0) {
+            const conflict = await this.fieldRepo
+                .createQueryBuilder('field')
+                .innerJoin('field.form', 'form')
+                .innerJoin('form.class', 'class')
+                .where('class.id = :classId', { classId })
+                .andWhere('field.label IN (:...labels)', { labels: specialLabels })
+                .andWhere('field.is_deleted = false')
+                .andWhere(formId ? 'form.id != :formId' : '1=1', formId ? { formId } : {})
+                .getOne()
+
+            if (conflict) throw new ConflictException({ errorCode: 'DUPLICATE_FIELD_LABEL', message: `Nhãn "${conflict.label}" đã được sử dụng trong lớp này` })
         }
 
         // --- Transaction ---
