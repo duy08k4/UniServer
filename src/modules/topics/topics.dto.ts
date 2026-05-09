@@ -96,3 +96,22 @@ export class TopicQueryDTO {
     @IsString()
     milestoneId?: string
 }
+
+export class LecturerTopicQueryDTO {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    classId: string
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    milestoneId?: string
+}
+
+export class CancelInviteDTO {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    classId: string
+}

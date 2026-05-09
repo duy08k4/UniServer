@@ -8,11 +8,12 @@ import { Milestones } from "src/entities/milestones.en";
 import { Users } from "src/entities/user.en";
 import { TopicsController } from "./topics.controller";
 import { TopicsService } from "./topics.service";
+import { TopicsGateway } from "./topics.gateway";
 
 @Module({
     imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([Topics, ClassMembers, Milestones, Users])],
     controllers: [TopicsController],
-    providers: [TopicsService],
+    providers: [TopicsService, TopicsGateway],
     exports: [TypeOrmModule],
 })
 export class TopicsModule { }

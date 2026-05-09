@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Uploaded
 import { ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { TopicsService } from "./topics.service";
-import { CreateTopicDTO, InviteSupervisorDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
+import { CancelInviteDTO, CreateTopicDTO, InviteSupervisorDTO, LecturerTopicQueryDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
 import { AuthGuard } from "../auth/auth.guard";
 import { RoleGuard } from "../auth/role.guard";
 import { Roles } from "src/decorators/roles.decorator";
@@ -14,6 +14,11 @@ import { MainRole } from "src/enums/enums";
 @Roles(MainRole.USER, MainRole.UNIADMIN)
 export class TopicsController {
     constructor(private readonly topicsService: TopicsService) { }
+
+    @Get('my')
+    getMyTopics(@Query() query: LecturerTopicQueryDTO, @Req() req: Request) {
+        return this.topicsService.getMyTopics(query, req)
+    }
 
     @Get()
     getTopics(@Query() query: TopicQueryDTO, @Req() req: Request) {
@@ -44,6 +49,11 @@ export class TopicsController {
     @Patch(':id/invite')
     inviteSupervisor(@Param('id') id: string, @Body() dto: InviteSupervisorDTO, @Req() req: Request) {
         return this.topicsService.inviteSupervisor(id, dto, req)
+    }
+
+    @Patch(':id/cancel-invite')
+    cancelInvite(@Param('id') id: string, @Body() dto: CancelInviteDTO, @Req() req: Request) {
+        return this.topicsService.cancelInvite(id, dto, req)
     }
 
     @Patch(':id/supervisor-response')

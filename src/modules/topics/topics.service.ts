@@ -1,19 +1,21 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { Topics } from "src/entities/topics.en";
 import { ClassMembers } from "src/entities/class_members.en";
 import { Milestones } from "src/entities/milestones.en";
-import { RoomRole, TopicStatus } from "src/enums/enums";
-import { CreateTopicDTO, InviteSupervisorDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
+import { RoomRole, ThesisType, TopicStatus } from "src/enums/enums";
+import { CancelInviteDTO, CreateTopicDTO, InviteSupervisorDTO, LecturerTopicQueryDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
 import { isUUID } from "class-validator";
 import { createClient } from "@supabase/supabase-js";
 import { ConfigService } from "@nestjs/config";
+import { TopicsGateway } from "./topics.gateway";
 
 @Injectable()
 export class TopicsService {
     constructor(
         private readonly configService: ConfigService,
+        private readonly topicsGateway: TopicsGateway,
         @InjectRepository(Topics)
         private readonly topics: Repository<Topics>,
         @InjectRepository(ClassMembers)
@@ -53,6 +55,30 @@ export class TopicsService {
         )
         const path = url.split('/Outline/')[1]
         if (path) await supabase.storage.from('Outline').remove([path])
+    }
+
+    // GET — danh sách đề tài của lecturer hiện tại trong 1 lớp
+    async getMyTopics(query: LecturerTopicQueryDTO, req: Request | any) {
+        const { classId, milestoneId } = query
+        const client = req.userData
+        if (!classId) throw new BadRequestException("Data is invalid")
+
+        const where: any = {
+            supervisor: { id: client.id },
+            milestone: { progress: { class: { id: classId } } }
+        }
+        if (milestoneId) where.milestone = { id: milestoneId, progress: { class: { id: classId } } }
+
+        return this.topics.find({
+            where,
+            relations: { student: true, supervisor: true, milestone: true },
+            select: {
+                student: { id: true, full_name: true, email: true },
+                supervisor: { id: true, full_name: true, email: true },
+                milestone: { id: true, label: true, is_registration_milestone: true }
+            },
+            order: { created_at: "DESC" }
+        })
     }
 
     // GET — danh sách đề tài theo class/milestone
@@ -140,12 +166,14 @@ export class TopicsService {
         if (!supervisorMember) throw new NotFoundException("Supervisor not found in this class")
 
         await this.topics.update(id, { supervisor: { id: supervisorId }, status: TopicStatus.INVITED })
-        return this.getOneTopic(id, req)
+        const result = await this.getOneTopic(id, req)
+        this.topicsGateway.topicUpdated({ topicId: id, classId })
+        return result
     }
 
     // PATCH — Lecturer accept/reject
     async supervisorResponse(id: string, dto: SupervisorResponseDTO, req: Request | any) {
-        const { accept, rejection_note } = dto
+        const { classId, accept, rejection_note } = dto
         const client = req.userData
 
         if (!isUUID(id)) throw new BadRequestException("Data is invalid")
@@ -154,12 +182,47 @@ export class TopicsService {
         if (!topic) throw new NotFoundException("Topic not found")
         if (topic.status !== TopicStatus.INVITED) throw new BadRequestException("Topic is not awaiting supervisor response")
 
+        if (accept) {
+            const acceptedStatuses = [TopicStatus.SUPERVISOR_ACCEPTED, TopicStatus.OUTLINE_PENDING, TopicStatus.OUTLINE_REJECTED, TopicStatus.APPROVED]
+            const count = await this.topics.count({
+                where: {
+                    supervisor: { id: client.id },
+                    thesis_type: topic.thesis_type,
+                    status: In(acceptedStatuses),
+                    milestone: { progress: { class: { id: classId } } }
+                }
+            })
+            const limit = topic.thesis_type === ThesisType.THESIS ? 4 : 8
+            if (count >= limit) throw new BadRequestException(
+                topic.thesis_type === ThesisType.THESIS
+                    ? "Đã đạt giới hạn 4 khóa luận trong lớp này"
+                    : "Đã đạt giới hạn 8 tiểu luận trong lớp này"
+            )
+        }
+
         const update: any = accept
             ? { status: TopicStatus.SUPERVISOR_ACCEPTED, rejection_note: null }
             : { status: TopicStatus.SUPERVISOR_REJECTED, rejection_note: rejection_note ?? null }
 
         await this.topics.update(id, update)
-        return this.getOneTopic(id, req)
+        const result = await this.getOneTopic(id, req)
+        this.topicsGateway.topicUpdated({ topicId: id, classId })
+        return result
+    }
+
+    // PATCH — Student thu hồi lời mời
+    async cancelInvite(id: string, dto: CancelInviteDTO, req: Request | any) {
+        const client = req.userData
+        if (!isUUID(id)) throw new BadRequestException("Data is invalid")
+
+        const topic = await this.topics.findOne({ where: { id, student: { id: client.id } } })
+        if (!topic) throw new NotFoundException("Topic not found")
+        if (topic.status !== TopicStatus.INVITED) throw new BadRequestException("Topic is not awaiting supervisor response")
+
+        await this.topics.update(id, { status: TopicStatus.DRAFT })
+        const result = await this.getOneTopic(id, req)
+        this.topicsGateway.topicUpdated({ topicId: id, classId: dto.classId })
+        return result
     }
 
     // PATCH — Student nộp file đề cương
@@ -175,7 +238,9 @@ export class TopicsService {
             throw new BadRequestException("Cannot submit outline at this stage")
 
         await this.topics.update(id, { outline_file_url, status: TopicStatus.OUTLINE_PENDING, rejection_note: null })
-        return this.getOneTopic(id, req)
+        const result = await this.getOneTopic(id, req)
+        this.topicsGateway.topicUpdated({ topicId: id, classId: dto.classId })
+        return result
     }
 
     // PATCH — RoomAdmin duyệt đề cương
@@ -206,6 +271,8 @@ export class TopicsService {
             : { status: TopicStatus.OUTLINE_REJECTED, rejection_note: rejection_note ?? null }
 
         await this.topics.update(id, update)
-        return this.getOneTopic(id, req)
+        const result = await this.getOneTopic(id, req)
+        this.topicsGateway.topicUpdated({ topicId: id, classId })
+        return result
     }
 }
