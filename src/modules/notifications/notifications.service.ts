@@ -139,7 +139,6 @@ export class NotificationsService {
                 select: { user: { email: true } }
             }).then(members => {
                 const emails = members.map(m => m.user.email).filter(Boolean)
-                const clientDomain = this.configService.get('CLIENT_DOMAIN')
 
                 const html = `
                 <div style="background-color: #f9fafb; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
@@ -169,12 +168,6 @@ export class NotificationsService {
                                 </table>
                             </div>
 
-                            <div style="text-align: center;">
-                                <a href="${clientDomain}/main/student/class/${classId}/newsfeed" 
-                                   style="background-color: #499C40; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 4px 14px rgba(73, 156, 64, 0.3);">
-                                   Truy cập Bảng tin
-                                </a>
-                            </div>
                         </div>
                         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
                             <p style="color: #9ca3af; font-size: 11px; margin: 0; line-height: 1.5;">

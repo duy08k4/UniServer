@@ -5,7 +5,7 @@ import { Committees } from "src/entities/committees.en";
 import { CommitteeMembers } from "src/entities/committee_members.en";
 import { ClassMembers } from "src/entities/class_members.en";
 import { Topics } from "src/entities/topics.en";
-import { CommitteeRole, MainRole, RoomRole } from "src/enums/enums";
+import { CommitteeRole, MainRole, RoomRole, TopicStatus } from "src/enums/enums";
 import { UpsertCommitteeDTO } from "./committees.dto";
 import { isUUID } from "class-validator";
 
@@ -66,9 +66,14 @@ export class CommitteesService {
             throw new BadRequestException("All committee members must be LECTURER in this class")
         }
 
-        // Get supervisors in class to exclude them
+        // Get supervisors in class to exclude them (only topics with accepted supervisor or beyond)
         const supervisors = await this.topics.find({
-            where: { milestone: { progress: { class: { id: classId } } } },
+            where: [
+                { milestone: { progress: { class: { id: classId } } }, status: TopicStatus.SUPERVISOR_ACCEPTED },
+                { milestone: { progress: { class: { id: classId } } }, status: TopicStatus.OUTLINE_PENDING },
+                { milestone: { progress: { class: { id: classId } } }, status: TopicStatus.OUTLINE_REJECTED },
+                { milestone: { progress: { class: { id: classId } } }, status: TopicStatus.APPROVED },
+            ],
             relations: { supervisor: true },
             select: { supervisor: { id: true } }
         })
