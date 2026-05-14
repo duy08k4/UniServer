@@ -6,6 +6,9 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import databaseConfig from "./config/data-source"
 import supabaseConfig from "./config/supabase"
 
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+
 // Modules
 import { AuthModule } from "./modules/auth/auth.module";
 import { ClassesModule } from "./modules/classes/classes.module";
@@ -43,7 +46,7 @@ import { PublicModule } from "./modules/public/public.module";
     TypeOrmModule.forFeature([]),
     AdminModule, AuthModule, ClassesModule, NotificationsModule, ProgressModule, TopicsModule, FormsModule, ScoreFormsModule, SubmissionsModule, CommitteesModule, TasksModule, PublicModule
   ],
-  controllers: [],
-  providers: []
+  controllers: [AppController],
+  providers: [AppService]
 })
 export class AppModule { }
