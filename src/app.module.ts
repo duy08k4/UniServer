@@ -6,6 +6,24 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import databaseConfig from "./config/data-source"
 import supabaseConfig from "./config/supabase"
 
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+
+// Modules
+import { AuthModule } from "./modules/auth/auth.module";
+import { ClassesModule } from "./modules/classes/classes.module";
+import { ProgressModule } from "./modules/progress/progress.module";
+import { FormsModule } from "./modules/forms/forms.module";
+import { ScoreFormsModule } from "./modules/scoreforms/scoreforms.module";
+import { TopicsModule } from "./modules/topics/topics.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { SubmissionsModule } from "./modules/submissions/submissions.module";
+import { CommitteesModule } from "./modules/committees/committees.module";
+import { ScheduleModule } from "@nestjs/schedule";
+import { TasksModule } from "./modules/tasks/tasks.module";
+import { AdminModule } from "./modules/admin/admin.module";
+import { PublicModule } from "./modules/public/public.module";
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -13,6 +31,8 @@ import supabaseConfig from "./config/supabase"
       load: [databaseConfig, supabaseConfig],
       envFilePath: '.env'
     }),
+
+    ScheduleModule.forRoot(),
 
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
@@ -23,10 +43,10 @@ import supabaseConfig from "./config/supabase"
       },
       inject: [ConfigService]
     }),
-
-    TypeOrmModule.forFeature([])
+    TypeOrmModule.forFeature([]),
+    AdminModule, AuthModule, ClassesModule, NotificationsModule, ProgressModule, TopicsModule, FormsModule, ScoreFormsModule, SubmissionsModule, CommitteesModule, TasksModule, PublicModule
   ],
-  controllers: [],
-  providers: []
+  controllers: [AppController],
+  providers: [AppService]
 })
 export class AppModule { }
