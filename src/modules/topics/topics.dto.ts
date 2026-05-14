@@ -115,3 +115,15 @@ export class CancelInviteDTO {
     @IsString()
     classId: string
 }
+
+export class AssignReviewerDTO {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    classId: string
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    reviewerId: string
+}

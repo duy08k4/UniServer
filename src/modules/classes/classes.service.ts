@@ -373,7 +373,7 @@ export class ClassesService {
                     email: true
                 }
             },
-            where: (search || roleSearch) ? [
+            where: (search && roleSearch) ? [
                 {
                     class: { id: classId },
                     user: {
@@ -388,7 +388,21 @@ export class ClassesService {
                     },
                     role: roleSearch
                 }
-            ] : { class: { id: classId } },
+            ] : search ? [
+                {
+                    class: { id: classId },
+                    user: {
+                        email: Raw((alias) => `unaccent(${alias}) ILIKE unaccent(:search)`, { search: `%${search}%` })
+                    },
+                },
+                {
+                    class: { id: classId },
+                    user: {
+                        full_name: Raw(() => `unaccent(full_name) ILIKE unaccent(:search)`, { search: `%${search}%` })
+                    },
+                }
+            ] : roleSearch ? { class: { id: classId }, role: roleSearch }
+              : { class: { id: classId } },
             order: {
                 joined_at: "ASC"
             },

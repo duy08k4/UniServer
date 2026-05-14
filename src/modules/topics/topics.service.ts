@@ -1,27 +1,32 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { Brackets, In, Repository } from "typeorm";
 import { Topics } from "src/entities/topics.en";
 import { ClassMembers } from "src/entities/class_members.en";
 import { Milestones } from "src/entities/milestones.en";
+import { Users } from "src/entities/user.en";
 import { RoomRole, ThesisType, TopicStatus } from "src/enums/enums";
 import { CancelInviteDTO, CreateTopicDTO, InviteSupervisorDTO, LecturerTopicQueryDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
 import { isUUID } from "class-validator";
 import { createClient } from "@supabase/supabase-js";
 import { ConfigService } from "@nestjs/config";
 import { TopicsGateway } from "./topics.gateway";
+import { MailService } from "../notifications/mail.service";
 
 @Injectable()
 export class TopicsService {
     constructor(
         private readonly configService: ConfigService,
         private readonly topicsGateway: TopicsGateway,
+        private readonly mailService: MailService,
         @InjectRepository(Topics)
         private readonly topics: Repository<Topics>,
         @InjectRepository(ClassMembers)
         private readonly classMembers: Repository<ClassMembers>,
         @InjectRepository(Milestones)
         private readonly milestones: Repository<Milestones>,
+        @InjectRepository(Users)
+        private readonly users: Repository<Users>,
     ) { }
 
     // POST — Upload file đề cương lên Supabase Storage
@@ -57,28 +62,29 @@ export class TopicsService {
         if (path) await supabase.storage.from('Outline').remove([path])
     }
 
-    // GET — danh sách đề tài của lecturer hiện tại trong 1 lớp
+    // GET — danh sách đề tài của lecturer hiện tại trong 1 lớp (với tư cách GVHD hoặc GVPB)
     async getMyTopics(query: LecturerTopicQueryDTO, req: Request | any) {
         const { classId, milestoneId } = query
         const client = req.userData
         if (!classId) throw new BadRequestException("Data is invalid")
 
-        const where: any = {
-            supervisor: { id: client.id },
-            milestone: { progress: { class: { id: classId } } }
-        }
-        if (milestoneId) where.milestone = { id: milestoneId, progress: { class: { id: classId } } }
+        const queryBuilder = this.topics.createQueryBuilder('topic')
+            .leftJoinAndSelect('topic.student', 'student')
+            .leftJoinAndSelect('topic.supervisor', 'supervisor')
+            .leftJoinAndSelect('topic.reviewer', 'reviewer')
+            .leftJoinAndSelect('topic.milestone', 'milestone')
+            .leftJoinAndSelect('milestone.progress', 'progress')
+            .where('progress.class = :classId', { classId })
+            .andWhere(new Brackets(qb => {
+                qb.where('topic.supervisor_id = :userId', { userId: client.id })
+                    .orWhere('topic.reviewer_id = :userId', { userId: client.id })
+            }))
 
-        return this.topics.find({
-            where,
-            relations: { student: true, supervisor: true, milestone: true },
-            select: {
-                student: { id: true, full_name: true, email: true },
-                supervisor: { id: true, full_name: true, email: true },
-                milestone: { id: true, label: true, is_registration_milestone: true }
-            },
-            order: { created_at: "DESC" }
-        })
+        if (milestoneId) {
+            queryBuilder.andWhere('topic.milestone_id = :milestoneId', { milestoneId })
+        }
+
+        return queryBuilder.orderBy('topic.created_at', 'DESC').getMany()
     }
 
     // GET — danh sách đề tài theo class/milestone
@@ -94,10 +100,11 @@ export class TopicsService {
 
         return this.topics.find({
             where,
-            relations: { student: true, supervisor: true, milestone: true },
+            relations: { student: true, supervisor: true, reviewer: true, milestone: true },
             select: {
                 student: { id: true, full_name: true, email: true },
                 supervisor: { id: true, full_name: true, email: true },
+                reviewer: { id: true, full_name: true, email: true },
                 milestone: { id: true, label: true }
             },
             order: { created_at: "DESC" }
@@ -109,10 +116,11 @@ export class TopicsService {
         if (!isUUID(id)) throw new BadRequestException("Data is invalid")
         const topic = await this.topics.findOne({
             where: { id },
-            relations: { student: true, supervisor: true, milestone: true },
+            relations: { student: true, supervisor: true, reviewer: true, milestone: true },
             select: {
                 student: { id: true, full_name: true, email: true },
                 supervisor: { id: true, full_name: true, email: true },
+                reviewer: { id: true, full_name: true, email: true },
                 milestone: { id: true, label: true, is_registration_milestone: true }
             }
         })
@@ -264,7 +272,7 @@ export class TopicsService {
         })
         if (!member) throw new ForbiddenException("Access denied")
 
-        if (topic.status === TopicStatus.SUPERVISOR_REJECTED || topic.status === TopicStatus.SUPERVISOR_ACCEPTED || topic.status === TopicStatus.DRAFT ||  topic.status === TopicStatus.INVITED) throw new BadRequestException("Topic is not pending review")
+        if (topic.status === TopicStatus.SUPERVISOR_REJECTED || topic.status === TopicStatus.SUPERVISOR_ACCEPTED || topic.status === TopicStatus.DRAFT || topic.status === TopicStatus.INVITED) throw new BadRequestException("Topic is not pending review")
 
         const update: any = approve
             ? { status: TopicStatus.APPROVED, rejection_note: null }
@@ -273,6 +281,75 @@ export class TopicsService {
         await this.topics.update(id, update)
         const result = await this.getOneTopic(id, req)
         this.topicsGateway.topicUpdated({ topicId: id, classId })
+        return result
+    }
+
+    // PATCH — RoomAdmin phân công GVPB
+    async assignReviewer(id: string, dto: any, req: Request | any) {
+        const { classId, reviewerId } = dto
+        const client = req.userData
+
+        if (!isUUID(id) || !isUUID(classId) || !isUUID(reviewerId)) throw new BadRequestException("Data is invalid")
+
+        // Kiểm tra quyền ROOMADMIN
+        const member = await this.classMembers.findOne({
+            where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN, is_deleted: false, is_banned: false }
+        })
+        if (!member) throw new ForbiddenException("Access denied")
+
+        const topic = await this.topics.findOne({
+            where: { id, milestone: { progress: { class: { id: classId } } } },
+            relations: { supervisor: true, milestone: { progress: { class: true } } }
+        })
+        if (!topic) throw new NotFoundException("Topic not found")
+
+        // Chỉ Tiểu luận (capstone) mới cần GVPB
+        if (topic.thesis_type !== ThesisType.CAPSTONE)
+            throw new BadRequestException("Chỉ Tiểu luận tốt nghiệp mới cần giảng viên phản biện")
+
+        // Chỉ được chỉ định khi đề tài đã được duyệt
+        if (topic.status !== TopicStatus.APPROVED)
+            throw new BadRequestException("Chỉ có thể chỉ định GVPB cho đề tài đã được duyệt")
+
+        // GVPB phải là lecturer trong lớp và KHÔNG được là GVHD của chính đề tài đó
+        const reviewerMember = await this.classMembers.findOne({
+            where: { class: { id: classId }, user: { id: reviewerId }, role: RoomRole.LECTURER, is_deleted: false, is_banned: false }
+        })
+        if (!reviewerMember) throw new BadRequestException("Reviewer must be a lecturer in this class")
+        if (reviewerId === topic.supervisor?.id) throw new BadRequestException("Reviewer cannot be the same as supervisor")
+
+        await this.topics.update(id, { reviewer: { id: reviewerId } })
+        const result = await this.getOneTopic(id, req)
+        this.topicsGateway.topicUpdated({ topicId: id, classId })
+
+        // Gửi email thông báo cho GVPB
+        const reviewer = await this.users.findOne({ where: { id: reviewerId }, select: { email: true, full_name: true } })
+        if (reviewer?.email) {
+            const className = topic.milestone?.progress?.class?.label ?? "lớp học"
+            const html = `
+            <div style="background-color:#f9fafb;padding:40px 0;font-family:'Segoe UI',sans-serif;">
+                <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e5e7eb;">
+                    <div style="background-color:#499C40;padding:24px;text-align:center;">
+                        <h1 style="color:#fff;margin:0;font-size:20px;text-transform:uppercase;letter-spacing:2px;font-weight:800;">UniProject</h1>
+                    </div>
+                    <div style="padding:40px;">
+                        <p style="color:#6b7280;font-size:12px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:1.5px;">Phân công phản biện</p>
+                        <h2 style="color:#111827;font-size:22px;font-weight:800;margin:0 0 20px 0;">Bạn được chỉ định làm Giảng viên phản biện</h2>
+                        <div style="background:#f3f4f6;border-radius:12px;padding:20px;border:1px solid #e5e7eb;">
+                            <table style="width:100%;border-collapse:collapse;">
+                                <tr><td style="color:#6b7280;font-size:13px;padding-bottom:10px;width:120px;font-weight:600;">Đề tài:</td><td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${topic.title}</td></tr>
+                                <tr><td style="color:#6b7280;font-size:13px;font-weight:600;">Lớp học:</td><td style="color:#111827;font-size:14px;font-weight:700;">${className}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div style="background:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+                        <p style="color:#9ca3af;font-size:11px;margin:0;">Đây là email tự động từ hệ thống <b>UniProject</b>.</p>
+                    </div>
+                </div>
+            </div>`
+            this.mailService.sendBulk([reviewer.email], "Bạn được chỉ định làm Giảng viên phản biện", html)
+        }
+
         return result
     }
 }

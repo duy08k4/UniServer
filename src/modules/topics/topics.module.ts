@@ -9,11 +9,12 @@ import { Users } from "src/entities/user.en";
 import { TopicsController } from "./topics.controller";
 import { TopicsService } from "./topics.service";
 import { TopicsGateway } from "./topics.gateway";
+import { MailService } from "../notifications/mail.service";
 
 @Module({
     imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([Topics, ClassMembers, Milestones, Users])],
     controllers: [TopicsController],
-    providers: [TopicsService, TopicsGateway],
+    providers: [TopicsService, TopicsGateway, MailService],
     exports: [TypeOrmModule],
 })
 export class TopicsModule { }

@@ -45,4 +45,8 @@ export class Topics {
     @ManyToOne(() => Users, (user) => user.supervisedTopics, { onDelete: 'SET NULL', nullable: true })
     @JoinColumn({ name: 'supervisor_id' })
     supervisor: Users
+
+    @ManyToOne(() => Users, (user) => user.reviewedTopics, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'reviewer_id' })
+    reviewer: Users
 }

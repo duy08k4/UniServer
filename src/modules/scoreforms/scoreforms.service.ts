@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { CLASS_LIMITS } from "src/config/class-limits";
 import { ScoreFormsPaginationDTO, UpdateScoreFormDTO, RemoveScoreFormsDTO } from "./scoreforms.dto";
-import { ColumnAllowedRole, ColumnLabel, ColumnType, MainRole, RoomRole, ScoreForm_Type, SubmissionStatus } from "src/enums/enums";
+import { ColumnAllowedRole, ColumnLabel, ColumnType, CommitteeRole, MainRole, RoomRole, ScoreForm_Type, SubmissionStatus } from "src/enums/enums";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ClassMembers } from "src/entities/class_members.en";
 import { ScoreForms } from "src/entities/score_forms.en";
@@ -398,7 +398,26 @@ export class ScoreFormsService {
             throw new ForbiddenException("Only ROOMADMIN can edit this column")
         }
 
-        if (allowed_role && [ColumnAllowedRole.CHAIRMAN, ColumnAllowedRole.REVIEWER, ColumnAllowedRole.MEMBER].includes(allowed_role)) {
+        if (allowed_role === ColumnAllowedRole.REVIEWER) {
+            // Trường hợp 1: Phân công qua Hội đồng (Committee)
+            const committeeMember = await this.committeeMemberRepo.findOne({
+                where: { committee: { class: { id: classId } }, user: { id: client.id }, role: CommitteeRole.REVIEWER as any }
+            })
+            if (committeeMember) return
+
+            // Trường hợp 2: Phân công trực tiếp qua Đề tài (thường dùng cho TLTN)
+            const row = await this.scoreFormRowRepo.findOne({ where: { id: rowId }, relations: { student: true } })
+            if (!row) throw new NotFoundException("Row not found")
+            const topic = await this.topicRepo.findOne({
+                where: { student: { id: row.student.id }, milestone: { progress: { class: { id: classId } } } },
+                relations: { reviewer: true }
+            })
+            if (topic?.reviewer?.id === client.id) return
+
+            throw new ForbiddenException("Only assigned reviewer can edit this column")
+        }
+
+        if (allowed_role && [ColumnAllowedRole.CHAIRMAN, ColumnAllowedRole.MEMBER].includes(allowed_role)) {
             const committeeMember = await this.committeeMemberRepo.findOne({
                 where: { committee: { class: { id: classId } }, user: { id: client.id }, role: allowed_role as any }
             })

@@ -82,6 +82,9 @@ export class Users {
     @OneToMany(() => Topics, (topic) => topic.supervisor)
     supervisedTopics: Topics[]
 
+    @OneToMany(() => Topics, (topic) => topic.reviewer)
+    reviewedTopics: Topics[]
+
     @OneToMany(() => CommitteeMembers, (member) => member.user, { cascade: true })
     committeeMembers: CommitteeMembers[]
 }

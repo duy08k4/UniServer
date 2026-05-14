@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Uploaded
 import { ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { TopicsService } from "./topics.service";
-import { CancelInviteDTO, CreateTopicDTO, InviteSupervisorDTO, LecturerTopicQueryDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
+import { AssignReviewerDTO, CancelInviteDTO, CreateTopicDTO, InviteSupervisorDTO, LecturerTopicQueryDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
 import { AuthGuard } from "../auth/auth.guard";
 import { RoleGuard } from "../auth/role.guard";
 import { Roles } from "src/decorators/roles.decorator";
@@ -69,5 +69,10 @@ export class TopicsController {
     @Patch(':id/review')
     reviewTopic(@Param('id') id: string, @Body() dto: ReviewTopicDTO, @Req() req: Request) {
         return this.topicsService.reviewTopic(id, dto, req)
+    }
+
+    @Patch(':id/assign-reviewer')
+    assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDTO, @Req() req: Request) {
+        return this.topicsService.assignReviewer(id, dto, req)
     }
 }
