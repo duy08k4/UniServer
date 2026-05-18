@@ -5,7 +5,7 @@ import { Topics } from "src/entities/topics.en";
 import { ClassMembers } from "src/entities/class_members.en";
 import { Milestones } from "src/entities/milestones.en";
 import { Users } from "src/entities/user.en";
-import { RoomRole, ThesisType, TopicStatus } from "src/enums/enums";
+import { MainRole, RoomRole, ThesisType, TopicStatus } from "src/enums/enums";
 import { CancelInviteDTO, CreateTopicDTO, InviteSupervisorDTO, LecturerTopicQueryDTO, ReviewTopicDTO, SubmitOutlineDTO, SupervisorResponseDTO, TopicQueryDTO } from "./topics.dto";
 import { isUUID } from "class-validator";
 import { createClient } from "@supabase/supabase-js";
@@ -251,7 +251,7 @@ export class TopicsService {
         return result
     }
 
-    // PATCH — RoomAdmin duyệt đề cương
+    // PATCH — Duyệt đề cương (RoomAdmin duyệt bước 1, UniAdmin duyệt bước 2)
     async reviewTopic(id: string, dto: ReviewTopicDTO, req: Request | any) {
         const { approve, rejection_note } = dto
         const client = req.userData
@@ -267,16 +267,32 @@ export class TopicsService {
         const classId = topic.milestone?.progress?.class?.id
         if (!classId) throw new NotFoundException("Class not found")
 
-        const member = await this.classMembers.findOne({
-            where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN, is_deleted: false, is_banned: false }
-        })
-        if (!member) throw new ForbiddenException("Access denied")
+        // Role-based logic
+        let newStatus: TopicStatus | undefined
 
-        if (topic.status === TopicStatus.SUPERVISOR_REJECTED || topic.status === TopicStatus.SUPERVISOR_ACCEPTED || topic.status === TopicStatus.DRAFT || topic.status === TopicStatus.INVITED) throw new BadRequestException("Topic is not pending review")
+        // RoomAdmin Review
+        if (client.role === MainRole.USER) {
+            const member = await this.classMembers.findOne({
+                where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN, is_deleted: false, is_banned: false }
+            })
+            if (!member) throw new ForbiddenException("Access denied")
 
-        const update: any = approve
-            ? { status: TopicStatus.APPROVED, rejection_note: null }
-            : { status: TopicStatus.OUTLINE_REJECTED, rejection_note: rejection_note ?? null }
+            if (topic.status !== TopicStatus.OUTLINE_PENDING)
+                throw new BadRequestException("Topic is not pending room admin review")
+
+            newStatus = approve ? TopicStatus.OUTLINE_WAITING_UNIADMIN : TopicStatus.OUTLINE_REJECTED
+        }
+        // UniAdmin Review
+        else if (client.role === MainRole.UNIADMIN) {
+            if (topic.status !== TopicStatus.OUTLINE_WAITING_UNIADMIN)
+                throw new BadRequestException("Topic is not waiting for uni admin review")
+
+            newStatus = approve ? TopicStatus.APPROVED : TopicStatus.OUTLINE_REJECTED
+        } else {
+            throw new ForbiddenException("Access denied")
+        }
+
+        const update: any = { status: newStatus, rejection_note: approve ? null : (rejection_note ?? null) }
 
         await this.topics.update(id, update)
         const result = await this.getOneTopic(id, req)
@@ -284,18 +300,17 @@ export class TopicsService {
         return result
     }
 
-    // PATCH — RoomAdmin phân công GVPB
+    // PATCH — UniAdmin phân công GVPB
     async assignReviewer(id: string, dto: any, req: Request | any) {
         const { classId, reviewerId } = dto
         const client = req.userData
 
         if (!isUUID(id) || !isUUID(classId) || !isUUID(reviewerId)) throw new BadRequestException("Data is invalid")
 
-        // Kiểm tra quyền ROOMADMIN
-        const member = await this.classMembers.findOne({
-            where: { class: { id: classId }, user: { id: client.id }, role: RoomRole.ROOMADMIN, is_deleted: false, is_banned: false }
-        })
-        if (!member) throw new ForbiddenException("Access denied")
+        // Chỉ UNIADMIN mới được phân công
+        if (client.role !== MainRole.UNIADMIN) {
+            throw new ForbiddenException("Only UNIADMIN can assign reviewer")
+        }
 
         const topic = await this.topics.findOne({
             where: { id, milestone: { progress: { class: { id: classId } } } },
