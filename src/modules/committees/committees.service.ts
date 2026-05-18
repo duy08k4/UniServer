@@ -30,14 +30,20 @@ export class CommitteesService {
             throw new BadRequestException("Invalid data")
         }
 
-        // Check ROOMADMIN permission
+        // Check UNIADMIN permission
+        if (client.role !== MainRole.UNIADMIN) {
+            throw new ForbiddenException("Only UNIADMIN can manage committee")
+        }
+
+        // Validate class exists (check if uniadmin is authorized for this class context if needed, 
+        // but typically uniadmin has global access)
         const classMember = await this.classMembers.findOne({
-            where: { class: { id: classId }, user: { id: client.id } },
+            where: { class: { id: classId } },
             relations: { class: true }
         })
 
-        if (!classMember || classMember.role !== RoomRole.ROOMADMIN) {
-            throw new ForbiddenException("Only ROOMADMIN can manage committee")
+        if (!classMember) {
+            throw new NotFoundException("Class not found")
         }
 
         // Validate required roles
