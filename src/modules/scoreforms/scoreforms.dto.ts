@@ -24,6 +24,11 @@ export class ScoreFormsPaginationDTO {
     @IsString()
     search?: string
 
+    @ApiPropertyOptional({enum: ScoreForm_Type })
+    @IsOptional()
+    @IsEnum(ScoreForm_Type)
+    scoreform_type?: ScoreForm_Type
+
     @ApiPropertyOptional()
     @IsOptional()
     @Transform(({ value }) => {

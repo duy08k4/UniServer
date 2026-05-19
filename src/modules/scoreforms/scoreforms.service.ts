@@ -90,7 +90,7 @@ export class ScoreFormsService {
 
     // Get score-form (pagination)
     async scoreFormsPagination(query: ScoreFormsPaginationDTO, req: Request | any) {
-        const { classId, page, size, search, is_deleted, is_stopped } = query
+        const { classId, page, size, search, scoreform_type, is_deleted, is_stopped } = query
         const client = req.userData
 
         if (client.role !== MainRole.UNIADMIN) {
@@ -112,11 +112,17 @@ export class ScoreFormsService {
                 'class.id', 'class.label',
                 'createdBy.id', 'createdBy.full_name', 'createdBy.email'
             ])
-            .where('sf.is_deleted = :is_deleted', { is_deleted: is_deleted ?? false })
             .skip((pageNum - 1) * sizeNum)
             .take(sizeNum)
             .orderBy('sf.created_at', 'DESC')
 
+        if (is_deleted !== undefined) {
+            qb.andWhere('sf.is_deleted = :is_deleted', { is_deleted })
+        } else if (client.role !== MainRole.UNIADMIN) {
+            qb.andWhere('sf.is_deleted = false')
+        }
+
+        if (scoreform_type) qb.andWhere('sf.score_form_type = :scoreform_type', { scoreform_type })
         if (classId) qb.andWhere('class.id = :classId', { classId })
         if (search) qb.andWhere('(sf.label ILIKE :search OR class.label ILIKE :search)', { search: `%${search}%` })
         if (is_stopped !== undefined) qb.andWhere('sf.is_stopped = :is_stopped', { is_stopped })

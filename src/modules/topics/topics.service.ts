@@ -284,9 +284,6 @@ export class TopicsService {
         }
         // UniAdmin Review
         else if (client.role === MainRole.UNIADMIN) {
-            if (topic.status !== TopicStatus.OUTLINE_WAITING_UNIADMIN)
-                throw new BadRequestException("Topic is not waiting for uni admin review")
-
             newStatus = approve ? TopicStatus.APPROVED : TopicStatus.OUTLINE_REJECTED
         } else {
             throw new ForbiddenException("Access denied")
