@@ -1,0 +1,8 @@
+export const CLASS_LIMITS = {
+    MAX_MEMBERS: 150,
+    MAX_PENDING: 150,
+    MAX_STUDENTS: 50,
+    MAX_LECTURERS: 99,
+    MAX_FORMS: 20,
+    MAX_SCORE_FORMS: 20,
+} as const
