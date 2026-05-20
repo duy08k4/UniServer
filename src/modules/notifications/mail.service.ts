@@ -1,51 +1,65 @@
-import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as nodemailer from "nodemailer";
 
 @Injectable()
-export class MailService implements OnModuleInit {
-    private transporter: nodemailer.Transporter;
+export class MailService {
     private readonly logger = new Logger(MailService.name);
+
+    private transporter: nodemailer.Transporter;
 
     constructor(private readonly configService: ConfigService) {
         this.transporter = nodemailer.createTransport({
-            host: "smtp.gmail.com",
-            port: 587,
-            secure: false, // false for STARTTLS (port 587)
-            requireTLS: true,
+            service: "gmail",
+
+            pool: true,
+            maxConnections: 3,
+            maxMessages: 50,
+
             auth: {
-                user: this.configService.get<string>('GMAIL_USER'),
-                pass: this.configService.get<string>('GMAIL_APP_PASSWORD'),
+                user: this.configService.get<string>("GMAIL_USER"),
+                pass: this.configService.get<string>("GMAIL_APP_PASSWORD"),
             },
-            tls: {
-                // Do not fail on invalid certs (optional, but helps if there's a proxy)
-                rejectUnauthorized: false,
-                minVersion: 'TLSv1.2'
-            },
+
             connectionTimeout: 10000,
             greetingTimeout: 10000,
             socketTimeout: 10000,
-        } as any);
+        });
     }
 
-    async onModuleInit() {
-        try {
-            await this.transporter.verify();
-            this.logger.log('SMTP Connection has been established successfully.');
-        } catch (error) {
-            this.logger.error('SMTP Connection failed:', error.message);
-        }
-    }
-
-    async sendBulk(emails: string[], subject: string, html: string): Promise<void> {
+    async sendBulk(
+        emails: string[],
+        subject: string,
+        html: string
+    ): Promise<void> {
         if (!emails.length) return;
-        
-        // Gửi không đồng bộ, không block response
-        this.transporter.sendMail({
-            from: `"UniProject" <${this.configService.get('GMAIL_USER')}>`,
-            bcc: emails.join(','),  // dùng bcc để ẩn email người nhận
-            subject,
-            html,
-        }).catch(err => this.logger.error(`[MailService] Send failed: ${err.message}`));
+
+        // chia batch nhỏ
+        const batchSize = 20;
+
+        for (let i = 0; i < emails.length; i += batchSize) {
+            const batch = emails.slice(i, i + batchSize);
+
+            try {
+                await this.transporter.sendMail({
+                    from: `"UniProject" <${this.configService.get(
+                        "GMAIL_USER"
+                    )}>`,
+                    bcc: batch,
+                    subject,
+                    html,
+                });
+
+                this.logger.log(`Sent batch ${i / batchSize + 1}`);
+
+                // delay nhẹ tránh Gmail throttle
+                await new Promise((r) => setTimeout(r, 1000));
+            } catch (err) {
+                this.logger.error(
+                    `Batch ${i / batchSize + 1} failed`,
+                    err
+                );
+            }
+        }
     }
 }
