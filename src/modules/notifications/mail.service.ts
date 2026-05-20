@@ -11,14 +11,18 @@ export class MailService implements OnModuleInit {
         this.transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 587,
-            secure: false, // use STARTTLS
-            pool: true,   // use connection pool
+            secure: false, // false for STARTTLS (port 587)
+            requireTLS: true,
             auth: {
                 user: this.configService.get<string>('GMAIL_USER'),
                 pass: this.configService.get<string>('GMAIL_APP_PASSWORD'),
             },
-            // Render/PaaS optimization: Force IPv4 and increase timeouts
-            connectionTimeout: 10000, // 10s
+            tls: {
+                // Do not fail on invalid certs (optional, but helps if there's a proxy)
+                rejectUnauthorized: false,
+                minVersion: 'TLSv1.2'
+            },
+            connectionTimeout: 10000,
             greetingTimeout: 10000,
             socketTimeout: 10000,
         } as any);
