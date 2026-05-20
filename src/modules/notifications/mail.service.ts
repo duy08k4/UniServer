@@ -10,8 +10,8 @@ export class MailService implements OnModuleInit {
     constructor(private readonly configService: ConfigService) {
         this.transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
-            port: 465,
-            secure: true, // use SSL
+            port: 587,
+            secure: false, // use STARTTLS
             pool: true,   // use connection pool
             auth: {
                 user: this.configService.get<string>('GMAIL_USER'),
@@ -21,7 +21,6 @@ export class MailService implements OnModuleInit {
             connectionTimeout: 10000, // 10s
             greetingTimeout: 10000,
             socketTimeout: 10000,
-            family: 4 // Force IPv4 to avoid resolution issues on some cloud providers
         } as any);
     }
 
