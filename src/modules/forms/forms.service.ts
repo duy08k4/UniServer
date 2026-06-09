@@ -171,7 +171,11 @@ export class FormsService {
                 },
                 milestone: {
                     id: true,
-                    label: true
+                    label: true,
+                    progress: {
+                        id: true,
+                        created_approval: true
+                    }
                 },
                 notifications: {
                     id: true,
@@ -179,7 +183,7 @@ export class FormsService {
                 }
             },
             relations: {
-                milestone: true,
+                milestone: { progress: true },
                 notifications: true,
                 class: true,
                 createdBy: true,
@@ -199,6 +203,13 @@ export class FormsService {
         })
 
         if (!formData) throw new NotFoundException("The form does not exist")
+
+        // Guard: Only RoomAdmin and UniAdmin can see forms of unapproved progress
+        if (client.role !== Role.UNIADMIN && (!isMember || isMember.role !== RoomRole.ROOMADMIN)) {
+            if (formData.milestone?.progress && !formData.milestone.progress.created_approval && !formData.is_join_form) {
+                throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+            }
+        }
 
         return formData
     }

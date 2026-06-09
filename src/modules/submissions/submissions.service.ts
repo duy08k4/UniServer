@@ -351,11 +351,16 @@ export class SubmissionService {
                 open_at: true,
                 close_at: true,
                 class: { id: true },
-                milestone: { id: true, is_registration_milestone: true, progress: { id: true } }
+                milestone: { id: true, is_registration_milestone: true, progress: { id: true, created_approval: true } }
             }
         })
 
         if (!form || form.is_deleted) throw new NotFoundException({ errorCode: 'FORM_NOT_FOUND', message: 'Form không tồn tại' })
+
+        // Guard: Progress approval check
+        if (form.milestone?.progress && !form.milestone.progress.created_approval && !form.is_join_form) {
+            throw new ForbiddenException({ errorCode: 'PROGRESS_NOT_APPROVED', message: 'Quy trình của lớp học này chưa được phê duyệt' })
+        }
 
         // Check Membership
         const isMember = await this.classMemberRepo.findOne({
@@ -447,6 +452,7 @@ export class SubmissionService {
             let savedSubmission: Submissions
             if (existingSubmission) {
                 existingSubmission.updated_at = new Date()
+                existingSubmission.status = SubmissionStatus.PENDING
                 savedSubmission = await manager.save(Submissions, existingSubmission)
             } else {
                 savedSubmission = await manager.save(Submissions, manager.create(Submissions, {
