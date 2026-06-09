@@ -92,10 +92,23 @@ export class TopicsService {
         const { classId, milestoneId } = query
         if (!classId || !isUUID(classId)) throw new BadRequestException("Data is invalid")
 
+        const client = req.userData
         const where: any = { milestone: { progress: { class: { id: classId } } } }
+
+        if (client.role !== MainRole.UNIADMIN) {
+            const member = await this.classMembers.findOne({
+                where: { class: { id: classId }, user: { id: client.id } }
+            })
+            if (!member) throw new ForbiddenException("Access denied")
+
+            if (member.role !== RoomRole.ROOMADMIN) {
+                where.milestone.progress.created_approval = true
+            }
+        }
+
         if (milestoneId) {
             if (!isUUID(milestoneId)) throw new BadRequestException("Data is invalid")
-            where.milestone = { id: milestoneId }
+            where.milestone.id = milestoneId
         }
 
         return this.topics.find({
@@ -116,15 +129,35 @@ export class TopicsService {
         if (!isUUID(id)) throw new BadRequestException("Data is invalid")
         const topic = await this.topics.findOne({
             where: { id },
-            relations: { student: true, supervisor: true, reviewer: true, milestone: true },
+            relations: { student: true, supervisor: true, reviewer: true, milestone: { progress: { class: true } } },
             select: {
                 student: { id: true, full_name: true, email: true },
                 supervisor: { id: true, full_name: true, email: true },
                 reviewer: { id: true, full_name: true, email: true },
-                milestone: { id: true, label: true, is_registration_milestone: true }
+                milestone: {
+                    id: true, label: true, is_registration_milestone: true,
+                    progress: { id: true, created_approval: true, class: { id: true } }
+                }
             }
         })
         if (!topic) throw new NotFoundException("Topic not found")
+
+        const client = req.userData
+        if (client.role !== MainRole.UNIADMIN) {
+            const classId = topic.milestone?.progress?.class?.id
+            if (!classId) throw new NotFoundException("Class not found")
+
+            const member = await this.classMembers.findOne({
+                where: { class: { id: classId }, user: { id: client.id } }
+            })
+
+            if (!member) throw new ForbiddenException("Access denied")
+
+            if (member.role !== RoomRole.ROOMADMIN && topic.milestone?.progress && !topic.milestone.progress.created_approval) {
+                throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+            }
+        }
+
         return topic
     }
 
@@ -143,9 +176,15 @@ export class TopicsService {
 
         // Milestone phải là registration milestone
         const milestone = await this.milestones.findOne({
-            where: { id: milestoneId, is_registration_milestone: true, progress: { class: { id: classId } } }
+            where: { id: milestoneId, is_registration_milestone: true, progress: { class: { id: classId } } },
+            relations: { progress: true }
         })
         if (!milestone) throw new NotFoundException("Registration milestone not found")
+
+        // Guard: Progress approval check
+        if (!milestone.progress.created_approval) {
+            throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+        }
 
         // Kiểm tra SV đã có topic chưa
         const existing = await this.topics.findOne({ where: { milestone: { id: milestoneId }, student: { id: client.id } } })
@@ -162,8 +201,17 @@ export class TopicsService {
 
         if (!isUUID(id) || !isUUID(classId) || !isUUID(supervisorId)) throw new BadRequestException("Data is invalid")
 
-        const topic = await this.topics.findOne({ where: { id, student: { id: client.id } }, relations: { milestone: true } })
+        const topic = await this.topics.findOne({
+            where: { id, student: { id: client.id } },
+            relations: { milestone: { progress: true } }
+        })
         if (!topic) throw new NotFoundException("Topic not found")
+
+        // Guard: Progress approval check
+        if (topic.milestone?.progress && !topic.milestone.progress.created_approval) {
+            throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+        }
+
         if (![TopicStatus.DRAFT, TopicStatus.SUPERVISOR_REJECTED].includes(topic.status))
             throw new BadRequestException("Cannot invite supervisor at this stage")
 
@@ -186,8 +234,17 @@ export class TopicsService {
 
         if (!isUUID(id)) throw new BadRequestException("Data is invalid")
 
-        const topic = await this.topics.findOne({ where: { id, supervisor: { id: client.id } }, relations: { supervisor: true } })
+        const topic = await this.topics.findOne({
+            where: { id, supervisor: { id: client.id } },
+            relations: { supervisor: true, milestone: { progress: true } }
+        })
         if (!topic) throw new NotFoundException("Topic not found")
+
+        // Guard: Progress approval check
+        if (topic.milestone?.progress && !topic.milestone.progress.created_approval) {
+            throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+        }
+
         if (topic.status !== TopicStatus.INVITED) throw new BadRequestException("Topic is not awaiting supervisor response")
 
         if (accept) {
@@ -240,8 +297,17 @@ export class TopicsService {
 
         if (!isUUID(id)) throw new BadRequestException("Data is invalid")
 
-        const topic = await this.topics.findOne({ where: { id, student: { id: client.id } }, relations: { student: true } })
+        const topic = await this.topics.findOne({
+            where: { id, student: { id: client.id } },
+            relations: { student: true, milestone: { progress: true } }
+        })
         if (!topic) throw new NotFoundException("Topic not found")
+
+        // Guard: Progress approval check
+        if (topic.milestone?.progress && !topic.milestone.progress.created_approval) {
+            throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+        }
+
         if (topic.status !== TopicStatus.SUPERVISOR_ACCEPTED && topic.status !== TopicStatus.OUTLINE_REJECTED)
             throw new BadRequestException("Cannot submit outline at this stage")
 

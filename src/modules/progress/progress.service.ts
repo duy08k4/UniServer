@@ -115,8 +115,11 @@ export class ProgressService {
 
         if (!classId || !req) throw new BadRequestException("Data is invalid")
 
+        const client = req.userData
+
         const progress = await this.progresses.findOne({
             select: {
+                created_approval: true,
                 class: {
                     id: true,
                     label: true,
@@ -142,6 +145,19 @@ export class ProgressService {
         })
 
         if (!progress) throw new NotFoundException("Progress not found")
+
+        // Guard: Only RoomAdmin and UniAdmin can see unapproved progress
+        if (client.role !== Role.UNIADMIN) {
+            const member = await this.classMembers.findOne({
+                where: { user: { id: client.id }, class: { id: classId } }
+            })
+
+            if (!member) throw new ForbiddenException("Access denied")
+
+            if (member.role !== RoomRole.ROOMADMIN && !progress.created_approval) {
+                throw new ForbiddenException("Quy trình này chưa được phê duyệt bởi quản trị viên")
+            }
+        }
 
         // Filter out deleted milestones
         progress.milestones = progress.milestones.filter(m => !m.is_deleted)
@@ -397,26 +413,32 @@ export class ProgressService {
         if (client.role !== Role.UNIADMIN && (!classId || !progressId)) throw new BadRequestException("Invalid data")
 
         // If the client is not a systemadmin. Check if the user is a member
+        let member: ClassMembers | null = null
         if (client.role !== Role.UNIADMIN) {
 
-            const isMember = await this.classMembers.findOne({
+            member = await this.classMembers.findOne({
                 where: {
                     user: { id: client.id },
                     class: { id: classId }
                 }
             })
 
-            if (!isMember) throw new ForbiddenException(CLASS_MEMBERSHIP_REQUIRED_403)
+            if (!member) throw new ForbiddenException(CLASS_MEMBERSHIP_REQUIRED_403)
         }
 
         // Only system admin can edit is_deleted field
-        const mainValidate = {
+        const mainValidate: any = {
             progress: {
                 id: progressId,
                 class: {
                     id: classId
                 }
             }
+        }
+
+        // Guard: For Students/Lecturers, only show milestones if progress is approved
+        if (client.role !== Role.UNIADMIN && member?.role !== RoomRole.ROOMADMIN) {
+            mainValidate.progress.created_approval = true
         }
 
         const [milestones, total] = await this.milestones.findAndCount({

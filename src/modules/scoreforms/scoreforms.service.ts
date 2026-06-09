@@ -10,7 +10,7 @@ import { ScoreFormCells } from "src/entities/score_form_cells.en";
 import { ScoreFormRows } from "src/entities/score_form_rows.en";
 import { Topics } from "src/entities/topics.en";
 import { CommitteeMembers } from "src/entities/committee_members.en";
-import { DataSource, DeepPartial, In, Repository } from "typeorm";
+import { Brackets, DataSource, DeepPartial, In, Repository } from "typeorm";
 import { FormulaHelper } from "./formula.helper";
 import { isUUID } from "class-validator";
 import { ScoreFormsGateway } from "./scoreforms.gateway";
@@ -93,9 +93,10 @@ export class ScoreFormsService {
         const { classId, page, size, search, scoreform_type, is_deleted, is_stopped } = query
         const client = req.userData
 
+        let member: ClassMembers | null = null
         if (client.role !== MainRole.UNIADMIN) {
             if (!classId) throw new BadRequestException("Class ID is required")
-            const member = await this.classMemberRepo.findOne({
+            member = await this.classMemberRepo.findOne({
                 where: { class: { id: classId }, user: { id: client.id } }
             })
             if (!member) throw new ForbiddenException("Access denied")
@@ -107,6 +108,8 @@ export class ScoreFormsService {
         const qb = this.scoreFormRepo.createQueryBuilder('sf')
             .leftJoin('sf.class', 'class')
             .leftJoin('sf.createdBy', 'createdBy')
+            .leftJoin('sf.milestone', 'milestone')
+            .leftJoin('milestone.progress', 'progress')
             .select([
                 'sf',
                 'class.id', 'class.label',
@@ -127,6 +130,14 @@ export class ScoreFormsService {
         if (search) qb.andWhere('(sf.label ILIKE :search OR class.label ILIKE :search)', { search: `%${search}%` })
         if (is_stopped !== undefined) qb.andWhere('sf.is_stopped = :is_stopped', { is_stopped })
 
+        // Guard: For Students/Lecturers, only show score forms if progress is approved
+        if (client.role !== MainRole.UNIADMIN && member?.role !== RoomRole.ROOMADMIN) {
+            qb.andWhere(new Brackets(filter_qb => {
+                filter_qb.where('progress.created_approval = true')
+                    .orWhere('sf.milestone IS NULL')
+            }))
+        }
+
         const [data, total] = await qb.getManyAndCount()
 
         return {
@@ -141,12 +152,14 @@ export class ScoreFormsService {
             .leftJoin('sf.class', 'class')
             .leftJoin('sf.createdBy', 'createdBy')
             .leftJoin('sf.milestone', 'milestone')
+            .leftJoin('milestone.progress', 'progress')
             .leftJoinAndSelect('sf.columns', 'columns')
             .select([
                 'sf',
                 'class.id', 'class.join_code', 'class.label',
                 'createdBy.id', 'createdBy.full_name', 'createdBy.email',
                 'milestone.id', 'milestone.label',
+                'progress.id', 'progress.created_approval',
                 'columns',
             ])
             .where('sf.id = :id', { id })
@@ -160,6 +173,11 @@ export class ScoreFormsService {
                 where: { class: { id: scoreForm.class.id }, user: { id: client.id } }
             })
             if (!member) throw new ForbiddenException("Access denied")
+
+            // Guard: Only RoomAdmin and UniAdmin can see score forms of unapproved progress
+            if (member.role !== RoomRole.ROOMADMIN && scoreForm.milestone?.progress && !scoreForm.milestone.progress.created_approval) {
+                throw new ForbiddenException("Quy trình của lớp học này chưa được phê duyệt")
+            }
         }
 
         return scoreForm

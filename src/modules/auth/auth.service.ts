@@ -132,7 +132,7 @@ export class AuthService {
             const { email } = requireResetPassword
 
             const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: this.configService.get<string>('CLIENT_DOMAIN') + "/reset-password"
+                redirectTo: this.configService.get<string>('CLIENT_DOMAIN') + "/auth/reset-password"
             })
 
             if (error) {
