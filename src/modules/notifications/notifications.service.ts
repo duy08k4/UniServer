@@ -136,7 +136,7 @@ export class NotificationsService {
             this.classMemberRepo.find({
                 where: { class: { id: classId }, is_deleted: false, is_banned: false },
                 relations: { user: true },
-                select: { user: { email: true } }
+                select: { id: true, user: { email: true } }
             }).then(members => {
                 const emails = members.map(m => m.user.email).filter(Boolean)
 
