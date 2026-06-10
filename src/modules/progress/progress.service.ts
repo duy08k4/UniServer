@@ -41,6 +41,7 @@ export class ProgressService {
 
         const [progresses, total] = await this.progresses.findAndCount({
             select: {
+                id: true,
                 milestones: { id: true },
                 class: {
                     id: true,
@@ -119,6 +120,7 @@ export class ProgressService {
 
         const progress = await this.progresses.findOne({
             select: {
+                id: true,
                 created_approval: true,
                 class: {
                     id: true,
@@ -223,6 +225,7 @@ export class ProgressService {
 
         const getProgress = await this.progresses.findOne({
             select: {
+                id: true,
                 class: {
                     id: true,
                     label: true,
@@ -443,6 +446,7 @@ export class ProgressService {
 
         const [milestones, total] = await this.milestones.findAndCount({
             select: {
+                id: true,
                 progress: {
                     id: true,
                     label: true,
@@ -511,6 +515,7 @@ export class ProgressService {
 
         const milestone = await this.milestones.findOne({
             select: {
+                id: true,
                 createdBy: {
                     id: true,
                     full_name: true,
@@ -792,7 +797,7 @@ export class ProgressService {
         // Xóa file outline trên Supabase Storage của các topics thuộc milestone sắp xóa
         const topicsWithFiles = await this.topics.find({
             where: { milestone: { id: In(filterMilestoneIds) } },
-            select: { outline_file_url: true }
+            select: { id: true, outline_file_url: true }
         })
         const filePaths = topicsWithFiles
             .filter(t => t.outline_file_url)

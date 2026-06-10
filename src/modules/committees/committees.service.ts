@@ -81,7 +81,7 @@ export class CommitteesService {
                 { milestone: { progress: { class: { id: classId } } }, status: TopicStatus.APPROVED },
             ],
             relations: { supervisor: true },
-            select: { supervisor: { id: true } }
+            select: { id: true, supervisor: { id: true } }
         })
 
         const supervisorIds = supervisors
@@ -147,6 +147,7 @@ export class CommitteesService {
                 members: { user: true }
             },
             select: {
+                id: true,
                 class: { id: true, label: true },
                 milestone: { id: true, label: true },
                 members: {
