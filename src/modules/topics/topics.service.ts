@@ -116,6 +116,7 @@ export class TopicsService {
             relations: { student: true, supervisor: true, reviewer: true, milestone: true },
             select: {
                 id: true,
+                created_at: true,
                 student: { id: true, full_name: true, email: true },
                 supervisor: { id: true, full_name: true, email: true },
                 reviewer: { id: true, full_name: true, email: true },

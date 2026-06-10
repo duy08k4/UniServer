@@ -42,6 +42,7 @@ export class ProgressService {
         const [progresses, total] = await this.progresses.findAndCount({
             select: {
                 id: true,
+                created_at: true,
                 milestones: { id: true },
                 class: {
                     id: true,
@@ -122,6 +123,9 @@ export class ProgressService {
             select: {
                 id: true,
                 created_approval: true,
+                milestones: {
+                    index: true
+                },
                 class: {
                     id: true,
                     label: true,
@@ -447,6 +451,8 @@ export class ProgressService {
         const [milestones, total] = await this.milestones.findAndCount({
             select: {
                 id: true,
+                index: true,
+                created_at: true,
                 progress: {
                     id: true,
                     label: true,
