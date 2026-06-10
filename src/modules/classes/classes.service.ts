@@ -368,6 +368,7 @@ export class ClassesService {
             },
             select: {
                 id: true,
+                joined_at: true,
                 user: {
                     id: true,
                     full_name: true,
