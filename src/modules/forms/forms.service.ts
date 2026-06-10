@@ -4,7 +4,7 @@ import { FormsPaginationDTO, GetFormDetailDTO, NewFormDTO, ToggleStopDTO } from 
 import { isDate, isUUID } from "class-validator";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Forms } from "src/entities/forms.en";
-import { Brackets, DataSource, DeepPartial, In, Not, Repository } from "typeorm";
+import { Brackets, Column, DataSource, DeepPartial, In, Not, Repository } from "typeorm";
 import { Fields } from "src/entities/fields.en";
 import { Checkbox_fields } from "src/entities/checkbox_fields.en";
 import { CheckboxFieldChoices } from "src/entities/checkbox_field_choices.en";
@@ -15,7 +15,6 @@ import { Notifications } from "src/entities/notifications.en";
 import { Field_Label, Role, RoomRole, SubmissionStatus } from "src/enums/enums";
 import { Users } from "src/entities/user.en";
 import { Submissions } from "src/entities/submissions.en";
-import { privateDecrypt } from "crypto";
 import { FormsGateway } from "./forms.gateway";
 
 @Injectable()
@@ -158,6 +157,18 @@ export class FormsService {
         const formData = await this.formRepo.findOne({
             select: {
                 id: true,
+                is_join_form: true,
+                label: true,
+                description: true,
+                field_count: true,
+                is_auto_open: true,
+                is_auto_close: true,
+                is_deleted: true,
+                is_stopped: true,
+                open_at: true,
+                close_at: true,
+                update_at: true,
+                created_at: true,
                 class: {
                     id: true,
                     join_code: true,
@@ -284,7 +295,7 @@ export class FormsService {
 
         if (is_auto_open && !open_at) throw new BadRequestException("open_at is required when is_auto_open is enabled")
         if (is_auto_close && !close_at) throw new BadRequestException("close_at is required when is_auto_close is enabled")
-        
+
         if (open_at && new Date(open_at) <= new Date()) {
             throw new BadRequestException("The open date must be later than the current time.")
         }
