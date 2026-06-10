@@ -42,7 +42,14 @@ export class ProgressService {
         const [progresses, total] = await this.progresses.findAndCount({
             select: {
                 id: true,
+                label: true,
+                description: true,
+                is_deleted: true,
+                is_submitted: true,
+                is_banned: true,
+                created_approval: true,
                 created_at: true,
+                updated_at: true,
                 milestones: { id: true },
                 class: {
                     id: true,
@@ -122,9 +129,24 @@ export class ProgressService {
         const progress = await this.progresses.findOne({
             select: {
                 id: true,
+                label: true,
+                description: true,
+                is_deleted: true,
+                is_submitted: true,
+                is_banned: true,
                 created_approval: true,
+                created_at: true,
+                updated_at: true,
                 milestones: {
-                    index: true
+                    id: true,
+                    index: true,
+                    label: true,
+                    description: true,
+                    is_deleted: true,
+                    is_stopped: true,
+                    is_registration_milestone: true,
+                    created_at: true,
+                    updated_at: true
                 },
                 class: {
                     id: true,
@@ -230,6 +252,14 @@ export class ProgressService {
         const getProgress = await this.progresses.findOne({
             select: {
                 id: true,
+                label: true,
+                description: true,
+                is_deleted: true,
+                is_submitted: true,
+                is_banned: true,
+                created_approval: true,
+                created_at: true,
+                updated_at: true,
                 class: {
                     id: true,
                     label: true,
@@ -452,7 +482,13 @@ export class ProgressService {
             select: {
                 id: true,
                 index: true,
+                label: true,
+                description: true,
+                is_deleted: true,
+                is_stopped: true,
+                is_registration_milestone: true,
                 created_at: true,
+                updated_at: true,
                 progress: {
                     id: true,
                     label: true,
@@ -522,6 +558,14 @@ export class ProgressService {
         const milestone = await this.milestones.findOne({
             select: {
                 id: true,
+                index: true,
+                label: true,
+                description: true,
+                is_deleted: true,
+                is_stopped: true,
+                is_registration_milestone: true,
+                updated_at: true,
+                created_at: true,
                 createdBy: {
                     id: true,
                     full_name: true,

@@ -368,7 +368,14 @@ export class ClassesService {
             },
             select: {
                 id: true,
+                role: true,
+                roomadmin_approved: true,
+                is_banned: true,
+                is_deleted: true,
+                is_committee_member: true,
                 joined_at: true,
+                updated_at: true,
+                created_at: true,
                 user: {
                     id: true,
                     full_name: true,
@@ -404,7 +411,7 @@ export class ClassesService {
                     },
                 }
             ] : roleSearch ? { class: { id: classId }, role: roleSearch }
-              : { class: { id: classId } },
+                : { class: { id: classId } },
             order: {
                 joined_at: "ASC"
             },
@@ -870,10 +877,18 @@ export class ClassesService {
             },
             select: {
                 id: true,
+                role: true,
+                roomadmin_approved: true,
+                is_banned: true,
+                is_deleted: true,
+                is_committee_member: true,
+                joined_at: true,
+                updated_at: true,
+                created_at: true,
                 user: {
                     id: true,
                     full_name: true,
-                    email: true
+                    email: true,
                 }
             },
             where: {
