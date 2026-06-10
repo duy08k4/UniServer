@@ -115,6 +115,7 @@ export class TopicsService {
             where,
             relations: { student: true, supervisor: true, reviewer: true, milestone: true },
             select: {
+                id: true,
                 student: { id: true, full_name: true, email: true },
                 supervisor: { id: true, full_name: true, email: true },
                 reviewer: { id: true, full_name: true, email: true },
@@ -131,6 +132,7 @@ export class TopicsService {
             where: { id },
             relations: { student: true, supervisor: true, reviewer: true, milestone: { progress: { class: true } } },
             select: {
+                id: true,
                 student: { id: true, full_name: true, email: true },
                 supervisor: { id: true, full_name: true, email: true },
                 reviewer: { id: true, full_name: true, email: true },
@@ -401,7 +403,7 @@ export class TopicsService {
         this.topicsGateway.topicUpdated({ topicId: id, classId })
 
         // Gửi email thông báo cho GVPB
-        const reviewer = await this.users.findOne({ where: { id: reviewerId }, select: { email: true, full_name: true } })
+        const reviewer = await this.users.findOne({ where: { id: reviewerId }, select: { id: true, email: true, full_name: true } })
         if (reviewer?.email) {
             const className = topic.milestone?.progress?.class?.label ?? "lớp học"
             const html = `

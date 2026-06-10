@@ -157,6 +157,7 @@ export class FormsService {
         // Get data
         const formData = await this.formRepo.findOne({
             select: {
+                id: true,
                 class: {
                     id: true,
                     join_code: true,

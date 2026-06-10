@@ -367,6 +367,7 @@ export class ClassesService {
                 user: true
             },
             select: {
+                id: true,
                 user: {
                     id: true,
                     full_name: true,
@@ -867,13 +868,12 @@ export class ClassesService {
                 user: true
             },
             select: {
-                ...({
-                    user: {
-                        id: true,
-                        full_name: true,
-                        email: true
-                    }
-                })
+                id: true,
+                user: {
+                    id: true,
+                    full_name: true,
+                    email: true
+                }
             },
             where: {
                 class: { id: classId },
