@@ -58,7 +58,7 @@ export class CommitteesService {
         // Validate all users are LECTURER in class
         const userIds = members.map(m => m.userId)
         const uniqueUserIds = [...new Set(userIds)]
-        
+
         const lecturers = await this.classMembers.find({
             where: {
                 class: { id: classId },
@@ -148,6 +148,8 @@ export class CommitteesService {
             },
             select: {
                 id: true,
+                created_at: true,
+                updated_at: true,
                 class: { id: true, label: true },
                 milestone: { id: true, label: true },
                 members: {
