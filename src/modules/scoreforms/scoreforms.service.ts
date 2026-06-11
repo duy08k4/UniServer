@@ -46,46 +46,51 @@ export class ScoreFormsService {
 
     // Tạo rows còn thiếu cho các SV đã được duyệt vào lớp
     async syncMissingRows(scoreFormId: string, classId: string) {
-        const scoreForm = await this.scoreFormRepo.findOne({ where: { id: scoreFormId } })
-        if (!scoreForm) return
+        await this.dataSource.transaction(async (manager) => {
+            const scoreForm = await manager.findOne(ScoreForms, {
+                where: { id: scoreFormId },
+                lock: { mode: 'pessimistic_write' }
+            })
+            if (!scoreForm) return
 
-        const nameCols = await this.scoreFormColumnRepo.find({
-            where: { scoreForm: { id: scoreFormId }, column_label: In([ColumnLabel.LAST_NAME, ColumnLabel.FIRST_NAME]) }
-        })
-        const lastNameCol = nameCols.find(c => c.column_label === ColumnLabel.LAST_NAME)
-        const firstNameCol = nameCols.find(c => c.column_label === ColumnLabel.FIRST_NAME)
+            const nameCols = await manager.find(ScoreFormColumns, {
+                where: { scoreForm: { id: scoreFormId }, column_label: In([ColumnLabel.LAST_NAME, ColumnLabel.FIRST_NAME]) }
+            })
+            const lastNameCol = nameCols.find(c => c.column_label === ColumnLabel.LAST_NAME)
+            const firstNameCol = nameCols.find(c => c.column_label === ColumnLabel.FIRST_NAME)
 
-        const students = await this.classMemberRepo.find({
-            where: { class: { id: classId }, role: RoomRole.STUDENT, roomadmin_approved: true },
-            relations: { user: true }
-        })
-
-        const existingRows = await this.scoreFormRowRepo.find({
-            where: { scoreForm: { id: scoreFormId } },
-            relations: { student: true }
-        })
-        const existingStudentIds = new Set(existingRows.map(r => r.student.id))
-
-        const missingStudents = students.filter(m => !existingStudentIds.has(m.user.id))
-        if (!missingStudents.length) return
-
-        const nextIndex = existingRows.length
-
-        for (let i = 0; i < missingStudents.length; i++) {
-            const user = missingStudents[i].user
-            const { firstName, lastName } = this.splitName(user.full_name)
-
-            const row = await this.scoreFormRowRepo.save({
-                index: nextIndex + i,
-                student: { id: user.id },
-                scoreForm: { id: scoreFormId }
+            const students = await manager.find(ClassMembers, {
+                where: { class: { id: classId }, role: RoomRole.STUDENT, roomadmin_approved: true },
+                relations: { user: true }
             })
 
-            const cells: any[] = []
-            if (lastNameCol) cells.push({ value: lastName, row: { id: row.id }, column: { id: lastNameCol.id }, score_form: { id: scoreFormId } })
-            if (firstNameCol) cells.push({ value: firstName, row: { id: row.id }, column: { id: firstNameCol.id }, score_form: { id: scoreFormId } })
-            if (cells.length) await this.scoreFormCellRepo.insert(cells)
-        }
+            const existingRows = await manager.find(ScoreFormRows, {
+                where: { scoreForm: { id: scoreFormId } },
+                relations: { student: true }
+            })
+            const existingStudentIds = new Set(existingRows.map(r => r.student.id))
+
+            const missingStudents = students.filter(m => !existingStudentIds.has(m.user.id))
+            if (!missingStudents.length) return
+
+            const nextIndex = existingRows.length
+
+            for (let i = 0; i < missingStudents.length; i++) {
+                const user = missingStudents[i].user
+                const { firstName, lastName } = this.splitName(user.full_name)
+
+                const row = await manager.save(ScoreFormRows, {
+                    index: nextIndex + i,
+                    student: { id: user.id },
+                    scoreForm: { id: scoreFormId }
+                })
+
+                const cells: any[] = []
+                if (lastNameCol) cells.push({ value: lastName, row: { id: row.id }, column: { id: lastNameCol.id }, score_form: { id: scoreFormId } })
+                if (firstNameCol) cells.push({ value: firstName, row: { id: row.id }, column: { id: firstNameCol.id }, score_form: { id: scoreFormId } })
+                if (cells.length) await manager.insert(ScoreFormCells, cells)
+            }
+        })
     }
 
     // Get score-form (pagination)
@@ -458,4 +463,3 @@ export class ScoreFormsService {
     }
 
 }
-

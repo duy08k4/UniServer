@@ -4,7 +4,7 @@ import { ScoreForms } from "./score_forms.en";
 import { ScoreFormCells } from "./score_form_cells.en";
 
 @Entity('score_form_rows')
-@Index(['student', 'scoreForm'])
+@Index(['student', 'scoreForm'], { unique: true })
 export class ScoreFormRows {
     @PrimaryGeneratedColumn('uuid')
     id: string
