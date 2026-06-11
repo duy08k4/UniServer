@@ -5,6 +5,7 @@ import { ScoreFormColumns } from "./score_form_columns.en";
 import { ScoreForms } from "./score_forms.en";
 
 @Entity('score_form_cells')
+@Index(['row', 'column'], { unique: true })
 @Index(['updatedBy', 'row', 'column'])
 export class ScoreFormCells {
     @PrimaryGeneratedColumn('uuid')
